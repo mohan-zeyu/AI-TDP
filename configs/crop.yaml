@@ -1,0 +1,10 @@
+# Board-window extraction settings (rows, cols) — 157x103 px ≈ Pi 4B PCB 85x56 mm @ ~0.543 mm/px
+size: [157, 103]
+border_px: 8            # frame border ring used for the ambient (background) estimate
+reference:
+  case: case02_full_load   # hot reference: window position + registration template
+  frame: -1                # last frame (hottest, sharpest board contrast)
+max_deviation_px: 3     # warn if a case's detected window strays further from the reference
+# Per-case manual overrides (win over detection/registration), e.g.:
+#   case00_unpowered: {row0: 31, col0: 52, rot90: 2}
+overrides: {}
