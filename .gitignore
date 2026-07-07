@@ -98,5 +98,5 @@ Pipfile.lock
 
 # TDP derived artifacts (regenerable from raw data / training)
 data/processed/
-models/v2/*.pt
+models/v2/
 models/scratch/
