@@ -1,0 +1,47 @@
+# Domain-randomized pretraining (M5). h_hat range set by M2 measurement:
+# the Pi 4B field flatness bounds h_hat <~ 3, so the range centers on the bound
+# (log-uniform [0.3, 30]) and still covers v1's h_hat = 5.
+scenario:
+  ny: 96
+  aspect_range: [0.5, 1.0]
+  h_hat_logrange: [0.3, 30.0]
+  robin_prob: 0.7
+  gamma_logrange: [0.1, 10.0]
+  n_sources: [1, 5]
+  gauss_prob: 0.7
+  sigma_range: [0.04, 0.15]
+  sigma_ratio: [0.4, 1.0]
+  rect_half: [0.03, 0.15]
+  rect_edge: 0.012
+  rel_amp: [0.2, 1.0]
+  base_amp: 200.0
+  margin: 0.12
+
+train:
+  n_train: 4096
+  n_val: 128
+  epochs: 250
+  batch_size: 32
+  lr: 1.0e-3
+  weight_decay: 1.0e-5
+  k_min: 4
+  k_max: 16
+  n_query: 384
+  n_colloc: 192
+  colloc_margin: 0.02
+  lambda_pde_max: 1.0e-3
+  pde_warmup_epochs: 10
+  pde_ramp_epochs: 20
+  layout_prob: 0.2
+  noise_theta_max: 0.10
+  board_aspect_frac: 0.25
+  seed: 0
+
+model:
+  d_model: 128
+  n_heads: 4
+  n_self: 2
+  n_cross: 3
+  n_fourier: 32
+  fourier_sigma: 5.0
+  cond_dim: 4
