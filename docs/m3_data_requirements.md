@@ -67,17 +67,32 @@ session, including the cold capture; (2) keep the same camera settings as last
 time (ε = 0.93, distance 0.1 m); (3) keep a plain-text log of times of every
 action; (4) nobody stands in front of the board during captures (reflections).
 
-### B1. Taping plan — do this BEFORE the session **[required]**
-Target **8–10 patches**, each ≥ 4×4 mm, flat and well-adhered (air gaps ruin contact),
-same tape roll for all:
-1. SoC lid (one ~5×5 mm patch — no more; tape insulates slightly),
-2. one shiny connector shield (USB or Ethernet — the worst emissivity liar, the
-   demo of correcting it is a key figure),
-3. far corner of the PCB (coldest region),
-4. RAM package,
-5. PMIC / power-circuitry area (left edge),
-6. bare solder-mask area mid-board,
-7.–10. your choice (HDMI shield, second bare area on the other half, USB controller VL805, GPIO-side edge).
+### B1. Taping plan — do this BEFORE the session **[tiered]**
+Patches ≥ 4×4 mm, flat and well-adhered (air gaps ruin contact), same roll for all.
+Note the roles: tape spots are one-session *validation instruments* (held out of
+training, removed afterward) — they are NOT deployment sensors, and their count
+does not affect how light the per-board fine-tune is. More spots = more
+leave-one-out validation points, nothing else.
+
+**Core [required, 5]** — spans hot/medium/cold and the units that matter:
+1. SoC lid (~5×5 mm, one patch only — tape insulates slightly),
+2. RAM package,
+3. PMIC / power-circuitry area (left edge),
+4. bare solder-mask area mid-board,
+5. far corner of the PCB (coldest region — validates the field, not because we
+   care about it operationally).
+
+**Demo patch [recommended, 1, only if it sticks well]:**
+6. one shiny connector shield (USB or Ethernet). Not because port temperature
+   matters — it is where IR lies most (~27 °C shown on a ~55 °C board), so this
+   single patch enables the "raw IR vs tape vs reconstruction" money figure and
+   tests the model exactly where IR supervision is masked out. Skip if adhesion
+   on curved metal is poor.
+
+**Statistics fillers [optional, up to 3]:** any additional spread-out spots
+(second bare area, USB controller VL805, GPIO-side edge) purely to fatten
+leave-one-out statistics.
+
 Then photograph the taped board with a ruler in frame (positions + scale in one shot).
 
 ### B2. Cold isothermal capture **[required — the single most valuable new data]**
