@@ -41,6 +41,24 @@ Claims the project makes (for reference):
 | **One contact-probe reading at a tape patch** *(optional)* | absolute anchor from a third instrument | upgrades "tape = truth" from assumption to verified (C3/C4) | tape trust rests on ε≈0.95 literature value (fine, weaker) |
 | **USB-traffic load case** *(optional)* | a steady state where the heat source *moves* (VL805 instead of SoC) | source-layout generalization test (C1 stretch) | generalization claim limited to amplitude, not layout |
 
+## What session 1 (2026-07-04) already covers — dedup guidance
+
+Session 1 is the **primary training/test dataset**, not a discarded draft: half
+load (plateaued, 41 steady frames) + idle = fine-tune training; full load = the
+untouched severity test; cool-downs = τ (truncated) + quasi-static validation.
+It becomes fully usable the moment two things are handed over — the tape-layout
+photo and the SoC log files. No new measurement is a prerequisite for M3–M7.
+
+Consequences for the new session (dedup):
+- **drop idle** (already have it);
+- **drop the second cooling** — one ≥20′ cooling after full load fixes τ;
+- **half load = optional replication** — session 1's half load stays the primary
+  training condition; a fresh one only buys a cleaner within-session replication;
+- **keep**: cold isothermal (irreplaceable, 2 min), full load ≥20′ (clean test
+  target), one cooling ≥20′, optional bare full-load (the C4 demo);
+- new session additionally unlocks the **cross-session robustness test**
+  (train on one day, test on the other) — a claim no single session can make.
+
 ## Minimum viable set
 
 If you cut everything cuttable, the pipeline still runs end-to-end with exactly:
