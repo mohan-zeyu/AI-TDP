@@ -122,7 +122,7 @@ def generate_dataset(n: int, scfg: ScenarioConfig, seed: int,
     return out
 
 
-# Fractional (u, v) positions of a plausible 8-spot tape layout on the board
+# Fractional (u, v) positions of a plausible 8-site sensor layout on the board
 # (u along the short side, v along the long side, image convention v↓).
 # PLACEHOLDER until configs/sensors_board.json exists (M3): SoC, RAM, USB ctrl,
 # PMIC, far corner, and three spread fill-ins, mirroring the Pi 4B floor plan.
@@ -151,10 +151,10 @@ def sample_sensors(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Sample sensor positions (K, 2) and their noisy θ readings (K,).
 
-    80% random placement with random K; 20% the (jittered) board tape layout.
-    Resamples up to `max_tries` if no sensor sees ≥ min_peak_frac of the field
-    peak — sensor layouts are engineered in practice, and a fully-blind set
-    makes the per-frame amplitude scale ΔT_s unidentifiable.
+    80% random placement with random K; 20% the (jittered) board sensor-site
+    layout. Resamples up to `max_tries` if no sensor sees ≥ min_peak_frac of the
+    field peak — sensor layouts are engineered in practice, and a fully-blind
+    set makes the per-frame amplitude scale ΔT_s unidentifiable.
     """
     theta_max = float(scn.theta.max())
     use_layout = layout is not None and rng.random() < layout_prob

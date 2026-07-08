@@ -26,5 +26,5 @@ def indicated_temp_c(
 
 def tape_bias_c(t_true_c: float, eps_tape: float = 0.95, eps_set: float = 0.93,
                 t_refl_c: float = 25.0) -> float:
-    """Indicated-minus-true bias at a black-tape spot (ε≈0.95, camera set to 0.93)."""
+    """Indicated-minus-true bias on a black-tape surface (ε≈0.95, camera set to 0.93)."""
     return indicated_temp_c(t_true_c, eps_tape, eps_set, t_refl_c) - t_true_c

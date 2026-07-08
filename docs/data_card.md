@@ -27,7 +27,11 @@ mounting orientation · camera model/accuracy · competition deadline.
 
 ## Session 2 — planned (weekend re-measurement)
 
-Protocol in `docs/m3_data_requirements.md` Part B: 8–10 tape spots (incl. one
-connector shield), cold isothermal set with untouched tripod (per-pixel bias
-map), ≥20 min loads and cool-downs, SoC log at 2 s with sync anchor, session log
-sheet. Optional: USB-C power readings, contact-probe spot checks, USB-load case.
+Protocol in `docs/m3_data_requirements.md` Part B — **A/B design**: config A bare
+(cold isothermal + full load + cooling; demonstrates the bare-SoC-lid emissivity
+failure), then tape applied without moving board/tripod, config B taped
+(mirrors session 1 + tiered extra patches; the training/eval configuration).
+Matched steady states give a measured per-pixel emissivity-error field; ≥20 min
+loads and cool-downs; SoC log at 2 s in both configs with a sync anchor; session
+log sheet; visible-light exports per config for annotation. Optional: USB-C
+power readings, contact-probe spot checks, USB-load case.

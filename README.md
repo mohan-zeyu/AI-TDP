@@ -44,6 +44,9 @@ for the full (Chinese) competition narrative and literature anchors.
    learnable ĥ checked against the measured bound, 50% synthetic replay against
    forgetting; the untouched full-load case is the severity-extrapolation test.
 
+Full stage-by-stage spec (distributions, losses, pixel roles, gates, failure
+modes): **`docs/training_protocol.md`**.
+
 ## Real dataset
 
 One session (2026-07-04) of a bare **Raspberry Pi 4B** under a HIKMICRO camera

@@ -95,10 +95,12 @@ measures the tape's own thermal perturbation.
 
 ### B1. Taping plan — do this BEFORE the session **[tiered]**
 Patches ≥ 4×4 mm, flat and well-adhered (air gaps ruin contact), same roll for all.
-Note the roles: tape spots are one-session *validation instruments* (held out of
-training, removed afterward) — they are NOT deployment sensors, and their count
-does not affect how light the per-board fine-tune is. More spots = more
-leave-one-out validation points, nothing else.
+Roles (see `docs/training_protocol.md` §4.2): the large sheets over the
+processors are the model's **core supervision**; small **validation patches**
+are chosen later in software, inside the trusted area. Extra physical patches
+below simply enlarge the trusted area in cold/medium regions so validation
+patches can be stratified there. None of this instruments the deployed board —
+tape is one-session lab equipment.
 
 **Core [required, 5]** — spans hot/medium/cold and the units that matter:
 1. SoC lid (~5×5 mm, one patch only — tape insulates slightly),
@@ -115,9 +117,9 @@ leave-one-out validation points, nothing else.
    tests the model exactly where IR supervision is masked out. Skip if adhesion
    on curved metal is poor.
 
-**Statistics fillers [optional, up to 3]:** any additional spread-out spots
-(second bare area, USB controller VL805, GPIO-side edge) purely to fatten
-leave-one-out statistics.
+**Statistics fillers [optional, up to 3]:** any additional spread-out patches
+(second bare area, USB controller VL805, GPIO-side edge) purely to widen the
+trusted area for validation-patch statistics.
 
 Then photograph the taped board with a ruler in frame (positions + scale in one shot).
 
