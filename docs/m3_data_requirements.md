@@ -62,74 +62,24 @@ do not spend time on them.
 
 ## Part B — New measurement session (one evening; fixes case00 and strengthens everything)
 
-**Context (2026-07-08):** session 1 was measured with large tape sheets already
-covering the central processors (SoC + adjacent region) — the "taped"
-configuration. The new session is a **two-configuration A/B design**:
-
-- **Config A — bare board [strongly recommended, ~45 min]**: the BCM2711 heat
-  spreader is shiny metal, so bare raw IR under-reads the *most important unit*.
-  A gives (1) the problem-demonstration figure (bare SoC lid reads cold while
-  the on-die diode says ~80 °C) and (2), subtracted from B at the matched
-  steady state, a directly measured **per-pixel emissivity-error field**.
-- **Config B — taped like session 1 [required, ~1.5 h]**: trusted ground-truth
-  regions over the processors; this is the configuration all training/validation
-  continues on. Mirror the session-1 tape coverage, plus the tiered extra spots
-  from B1 (solder mask, cold corner; connector patch if it sticks).
-
-**Order: A first, then apply tape without moving anything** — tape can be added
-mid-session, but not removed cleanly. Sequence:
-cold capture (bare) → full load ≥20 min (bare) → cooling ≥20 min (bare) →
-apply tape carefully → idle → half load ≥20 min → cooling ≥20 min →
-full load ≥20 min → cooling ≥20 min (all taped).
-A taped cold capture is a bonus if the board can cool again afterward
-(e.g. next morning, tripod untouched).
-
 **Golden rules:** (1) once the tripod is set, do not touch it for the entire
-session, including the cold capture and tape application; (2) **fix the board
-to the surface first** (corner tape/standoffs — it currently sits loose on the
-foam mat), so applying patches cannot shift it; (3) same camera settings as
-session 1 (ε = 0.93, distance 0.1 m); (4) plain-text log of times of every
-action; (5) nobody stands in front of the board during captures (reflections);
-(6) log the SoC diode in BOTH configs — it proves the A/B states match and
-measures the tape's own thermal perturbation.
+session, including the cold capture; (2) keep the same camera settings as last
+time (ε = 0.93, distance 0.1 m); (3) keep a plain-text log of times of every
+action; (4) nobody stands in front of the board during captures (reflections).
 
-### B1. Taping plan — do this BEFORE the session **[tiered]**
-Patches ≥ 4×4 mm, flat and well-adhered (air gaps ruin contact), same roll for all.
-Roles (see `docs/training_protocol.md` §4.2): the large sheets over the
-processors are the model's **core supervision**; small **validation patches**
-are chosen later in software, inside the trusted area. Extra physical patches
-below simply enlarge the trusted area in cold/medium regions so validation
-patches can be stratified there. None of this instruments the deployed board —
-tape is one-session lab equipment.
+### B1. Taping plan — do this BEFORE the session **[required]**
+Target **8–10 patches**, each ≥ 4×4 mm, flat and well-adhered (air gaps ruin contact),
+same tape roll for all:
 
-**Core [required, 5]** — spans hot/medium/cold and the units that matter:
-1. SoC lid (~5×5 mm, one patch only — tape insulates slightly),
-2. RAM package,
-3. PMIC / power-circuitry area (left edge),
-4. bare solder-mask area mid-board,
-5. far corner of the PCB (coldest region — validates the field, not because we
-   care about it operationally).
-
-**Demo patch [recommended, 1, only if it sticks well]:**
-6. one shiny connector shield (USB or Ethernet). Not because port temperature
-   matters — it is where IR lies most (~27 °C shown on a ~55 °C board), so this
-   single patch enables the "raw IR vs tape vs reconstruction" money figure and
-   tests the model exactly where IR supervision is masked out. Skip if adhesion
-   on curved metal is poor.
-
-**Statistics fillers [optional, up to 3]:** any additional spread-out patches
-(second bare area, USB controller VL805, GPIO-side edge) purely to widen the
-trusted area for validation-patch statistics.
-
+1. SoC lid (one ~5×5 mm patch — no more; tape insulates slightly),
+2. one shiny connector shield (USB or Ethernet — the worst emissivity liar, the
+   demo of correcting it is a key figure),
+3. far corner of the PCB (coldest region),
+4. RAM package,
+5. PMIC / power-circuitry area (left edge),
+6. bare solder-mask area mid-board,
+7.–10. your choice (HDMI shield, second bare area on the other half, USB controller VL805, GPIO-side edge).
 Then photograph the taped board with a ruler in frame (positions + scale in one shot).
-
-### B0. Visible-light reference **[required, 2 minutes]**
-HIKMICRO Analyzer shows a 可见光 (visible-light) image per capture — export it
-for at least one frame per configuration, or take a perpendicular phone photo of
-the board in each configuration from the tripod position. This is what the
-tape-region masks (`configs/source_mask_board.json` / trust masks) get annotated
-from. Also drop the session-1 visible photo (the one showing the tape layout)
-into `docs/session1_records/`.
 
 ### B2. Cold isothermal capture **[required — the single most valuable new data]**
 - Board fully off and cold: powered off ≥3 h, ideally overnight, in the measurement room.
