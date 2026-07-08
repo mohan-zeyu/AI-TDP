@@ -108,10 +108,13 @@ any parent folder name — just tell me what it is.
 Run on the Pi for the whole session:
 ```bash
 while true; do
-  echo "$(date +%s),$(vcgencmd measure_temp | grep -o '[0-9.]*')" >> ~/tlog.csv
+  echo "$(date +%s),$(vcgencmd measure_temp | grep -o '[0-9.]*'),$(vcgencmd measure_clock arm | cut -d= -f2),$(vcgencmd get_throttled | cut -d= -f2)" >> ~/tlog.csv
   sleep 2
 done
 ```
+(The extra clock + throttled fields cost nothing and reveal whether the SoC
+self-regulated near 80 °C during full load — session 1 likely brushed that
+threshold at 79.2 °C surface.)
 Sync anchor (any ONE): photograph the Pi showing `date` next to the camera's
 clock display, or write down the camera time at the moment you launch each load
 command. NTP-synced Pi + noted timezone also works.

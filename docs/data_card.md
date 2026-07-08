@@ -8,6 +8,7 @@
 | Camera | HIKMICRO (exact model **pending A5**), 192×256 px | file format |
 | Cadence / distance / ε setting | ~6.3 s · 0.1 m · 0.93 (reflected temp set 25.0 °C) | CSV metadata |
 | Cases | case00 unplugged (12 f, 20:39, **re-staged**) · case01 idle (12) · case02 full load (120) · case03 cooling (36) · case04 half load (120) · case05 cooling (36) | folders |
+| Workload | full load = 4× `yes > /dev/null &` (all 4 cores busy-loop; GPU idle); half load = 2× (assumed — to confirm); stopped via `killall yes` (clean step-off for τ fits). Caveat: surface 79.2 °C ⇒ junction ≈ 80 °C soft-throttle threshold — full-load source may have been DVFS-regulated near the plateau; check the SoC log for saw-toothing at ~80 °C | group member, 2026-07-08 |
 | Board window | 157×103 px at (row 61, col 42), shared across cases 01–05 (detected deviation ≤2 px); ≈0.543 mm/px | ingest |
 | Ambient (border median) | 25.9–26.7 °C across session | ingest |
 | Full-load hotspot | 79.2 °C at crop (95, 40) (SoC) — read **on tape**, i.e. a trusted value (known bias +0.5–0.9 °C) | canonical field |
@@ -22,8 +23,9 @@
 only ~half a time constant; steady frames are near-duplicates (n_eff 2–11).
 
 **Pending records (A1–A6, see `docs/m3_data_requirements.md`):** tape positions &
-tape type · SoC temperature logs + clock sync · workload commands · airflow &
-mounting orientation · camera model/accuracy · competition deadline.
+tape type · SoC temperature logs + clock sync · workload remainder (confirm half
+= 2× `yes`; OS version/bitness; power supply) · airflow & mounting orientation ·
+camera model/accuracy · competition deadline.
 
 ## Session 2 — planned (weekend re-measurement)
 
