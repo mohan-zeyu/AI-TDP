@@ -39,8 +39,10 @@ for the full (Chinese) competition narrative and literature anchors.
    noise levels, MSE + self-normalized autograd PDE residual (λ ramped to 1e-3).
    A λ=0 twin provides the physics ablation.
 4. **Per-board fine-tuning** (M7, upcoming): trust-masked dense IR supervision
-   with tape pixels held out for validation, learnable ĥ checked against the
-   measured bound, 50% synthetic replay against forgetting.
+   (tape regions are the core supervision; small validation patches within the
+   trusted area are held out for model selection and honest spatial metrics),
+   learnable ĥ checked against the measured bound, 50% synthetic replay against
+   forgetting; the untouched full-load case is the severity-extrapolation test.
 
 ## Real dataset
 
