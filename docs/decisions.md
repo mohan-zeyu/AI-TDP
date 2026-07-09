@@ -60,3 +60,14 @@ Three pixel roles: input sensors / dense trusted supervision (incl. tape) /
 User: per-board calibration must stay light; effort on units that matter. Tape
 is lab-only instrumentation; count affects validation statistics only.
 → `m3_data_requirements.md` B1.
+
+**2026-07-10 — v2.5 in-context board conditioning adopted, before the full pretrain.**
+User wanted an explicit board representation for cross-board transfer
+(contrastive-embedding instinct). Chosen mechanism: boards get multiple
+operating states (shared layout + LU, re-drawn amplitudes); 1–2 reference
+frames enter as typed context tokens; context/cond dropout keeps v2 mode
+intact; fair-K dual validation; K-curve down to K=2. Contrastive kept as
+optional auxiliary (discriminative ≠ task-sufficient; global vector bottlenecks
+layout). Timing: architecture change is nearly free before the expensive
+pretrain. Smoke: ctx 0.296 vs no-ctx 0.349 val RMSE @12 ep.
+→ `docs/board_transfer_architecture.md`, `tdp/{sim,model,train}`.

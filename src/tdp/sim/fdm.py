@@ -22,15 +22,16 @@ def grid_coords(ny: int, nx: int, aspect: float) -> tuple[np.ndarray, np.ndarray
     return np.meshgrid(x, y)
 
 
-def solve_steady(
-    q_hat: np.ndarray,
+def factorize_steady(
+    ny: int,
+    nx: int,
     aspect: float,
     h_hat: float,
     bc: str = "robin",
     gamma: float = 1.0,
-) -> np.ndarray:
-    """Solve the nondimensional steady equation for a gridded source q_hat (ny, nx)."""
-    ny, nx = q_hat.shape
+):
+    """Assemble and LU-factorize the steady operator once; reuse across source
+    fields of the same board (multi-state generation shares one factorization)."""
     dx = aspect / (nx - 1)
     dy = 1.0 / (ny - 1)
     cx, cy = 1.0 / dx**2, 1.0 / dy**2
@@ -80,12 +81,11 @@ def solve_steady(
         rows = np.concatenate(rows_list)[keep]
         cols = np.concatenate(cols_list)[keep]
         vals = np.concatenate(vals_list)[keep]
-        rhs = np.where(boundary, 0.0, -q_hat).ravel()
     elif bc == "robin":
+        boundary = None
         rows = np.concatenate(rows_list)
         cols = np.concatenate(cols_list)
         vals = np.concatenate(vals_list)
-        rhs = (-q_hat).ravel()
     else:
         raise ValueError(f"unknown bc {bc!r}")
 
@@ -93,8 +93,30 @@ def solve_steady(
     cols = np.concatenate([cols, np.arange(N)])
     vals = np.concatenate([vals, diag.ravel()])
     A = coo_matrix((vals, (rows, cols)), shape=(N, N)).tocsc()
-    theta = splu(A).solve(rhs)
-    return theta.reshape(ny, nx)
+    return splu(A), boundary
+
+
+def solve_with(lu, boundary: np.ndarray | None, q_hat: np.ndarray) -> np.ndarray:
+    """Solve a factorized system for one gridded source field (ny, nx)."""
+    ny, nx = q_hat.shape
+    if boundary is None:  # robin
+        rhs = (-q_hat).ravel()
+    else:  # dirichlet
+        rhs = np.where(boundary, 0.0, -q_hat).ravel()
+    return lu.solve(rhs).reshape(ny, nx)
+
+
+def solve_steady(
+    q_hat: np.ndarray,
+    aspect: float,
+    h_hat: float,
+    bc: str = "robin",
+    gamma: float = 1.0,
+) -> np.ndarray:
+    """Assemble + solve in one call (convenience for tests and one-off fields)."""
+    ny, nx = q_hat.shape
+    lu, boundary = factorize_steady(ny, nx, aspect, h_hat, bc, gamma)
+    return solve_with(lu, boundary, q_hat)
 
 
 def bilinear(grid: np.ndarray, xy: np.ndarray, aspect: float) -> np.ndarray:

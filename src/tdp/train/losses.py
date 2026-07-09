@@ -10,16 +10,17 @@ from __future__ import annotations
 import torch
 
 
-def pde_residual(model, sensors, sensor_mask, cond, colloc, q_over_s, h_hat):
+def pde_residual(predict_fn, colloc, q_over_s, h_hat):
     """Relative residual at collocation points: R / (|∇²θ'| + |ĥθ'| + |Q̂/s| + 1).
 
     The self-normalizing denominator (detached) keeps the loss O(1) across the
     randomized ĥ range and across training stages, so λ_pde acts as a genuine
     light-touch regularizer rather than silently rebalancing the objective.
-    colloc (B,M,2) · q_over_s (B,M) · h_hat (B,).
+    predict_fn: coords (B,M,2) → θ (B,M) with the sample's full conditioning
+    (sensors/context/cond) closed over. colloc (B,M,2) · q_over_s (B,M) · h_hat (B,).
     """
     colloc = colloc.detach().requires_grad_(True)
-    theta = model(sensors, colloc, cond, sensor_mask=sensor_mask)  # (B, M)
+    theta = predict_fn(colloc)  # (B, M)
     g1 = torch.autograd.grad(theta.sum(), colloc, create_graph=True)[0]  # (B, M, 2)
     txx = torch.autograd.grad(g1[..., 0].sum(), colloc, create_graph=True)[0][..., 0]
     tyy = torch.autograd.grad(g1[..., 1].sum(), colloc, create_graph=True)[0][..., 1]
@@ -42,7 +43,7 @@ def probe_double_backward(model, device) -> bool:
         colloc = torch.rand(1, 4, 2, device=device)
         q = torch.zeros(1, 4, device=device)
         h = torch.ones(1, device=device)
-        r = pde_residual(model, sensors, None, cond, colloc, q, h)
+        r = pde_residual(lambda xy: model(sensors, xy, cond), colloc, q, h)
         loss = pde_loss(r)
         torch.autograd.grad(loss, [p for p in model.parameters() if p.requires_grad][:1],
                             allow_unused=True)

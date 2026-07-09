@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 SMALL_OVERRIDES = {"n_train": 192, "n_val": 32, "epochs": 12, "batch_size": 16,
                    "n_query": 256, "n_colloc": 128, "pde_warmup_epochs": 2,
-                   "pde_ramp_epochs": 4}
+                   "pde_ramp_epochs": 4, "n_context": (32, 96)}
 
 
 def _tupled(d: dict) -> dict:
@@ -44,7 +44,7 @@ def main() -> None:
 
     cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
     scfg = ScenarioConfig(**_tupled(cfg["scenario"]))
-    tdict = dict(cfg["train"])
+    tdict = _tupled(cfg["train"])
     if args.small:
         tdict.update(SMALL_OVERRIDES)
         if args.small and cfg["scenario"].get("ny", 96) > 64:

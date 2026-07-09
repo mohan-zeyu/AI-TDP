@@ -1,9 +1,11 @@
 """ThermalOperatorV2 — the v1 attention operator (ported verbatim from
-AI_TDP.ipynb) plus a single condition token carrying [log ĥ, log γ, aspect, BC].
+AI_TDP.ipynb) extended with (a) a condition token [log ĥ, log γ, aspect, BC] and
+(b) v2.5 in-context board conditioning: reference-frame points enter the
+attention set as extra tokens, distinguished by learned type embeddings
+(live sensor / context frame 0 / context frame 1 / condition token).
 
-The token is appended to the encoded sensor set (always valid in the padding
-mask), so permutation invariance over sensors and variable K are untouched.
-I/O is fully nondimensional (see tdp.model.normalization).
+Empty context ≡ v2 behaviour. Permutation invariance over sensors and variable
+K are untouched. I/O is fully nondimensional (see tdp.model.normalization).
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ class ModelConfig:
     n_fourier: int = 32
     fourier_sigma: float = 5.0
     cond_dim: int = 4
+    n_token_types: int = 4  # 0 live sensor · 1 context frame A · 2 context frame B · 3 cond
 
 
 class FourierFeatures(nn.Module):
@@ -103,6 +106,7 @@ class ThermalOperatorV2(nn.Module):
         self.sens_enc = SensorEncoder(cfg.d_model, cfg.n_fourier, cfg.fourier_sigma)
         self.query_enc = QueryEncoder(cfg.d_model, cfg.n_fourier, cfg.fourier_sigma)
         self.cond_embed = nn.Linear(cfg.cond_dim, cfg.d_model)
+        self.type_embed = nn.Embedding(cfg.n_token_types, cfg.d_model)
         self.self_blocks = nn.ModuleList(
             [AttentionBlock(cfg.d_model, cfg.n_heads, cross=False) for _ in range(cfg.n_self)]
         )
@@ -116,21 +120,62 @@ class ThermalOperatorV2(nn.Module):
             nn.Linear(cfg.d_model, 1),
         )
 
-    def forward(self, sensors, queries, cond, sensor_mask=None):
-        """sensors (B,K,3) · queries (B,Q,2) · cond (B,4) · sensor_mask (B,K) True=pad."""
-        s = self.sens_enc(sensors)
-        c = self.cond_embed(cond).unsqueeze(1)  # (B, 1, d)
-        s = torch.cat([s, c], dim=1)
-        if sensor_mask is not None:
-            pad = torch.zeros(sensor_mask.shape[0], 1, dtype=torch.bool,
-                              device=sensor_mask.device)
-            sensor_mask = torch.cat([sensor_mask, pad], dim=1)  # token always valid
+    def forward(self, sensors, queries, cond=None, sensor_mask=None,
+                context=None, context_state=None, context_mask=None,
+                cond_mask=None):
+        """sensors (B,K,3) · queries (B,Q,2) · cond (B,4) or None.
+
+        v2.5 extras (all optional; None ≡ v2 behaviour):
+          context (B,M,3) reference-frame points (x, y, θ_ref/s_ctx),
+          context_state (B,M) long 0/1 = which reference frame,
+          context_mask (B,M) bool True=pad,
+          cond_mask (B,) bool True=drop the condition token for that sample.
+        Masks: True = padded/ignored (nn.MultiheadAttention convention).
+        """
+        B = sensors.shape[0]
+        dev = sensors.device
+        tokens = [self.sens_enc(sensors) + self.type_embed.weight[0]]
+        masks = [sensor_mask if sensor_mask is not None
+                 else torch.zeros(B, sensors.shape[1], dtype=torch.bool, device=dev)]
+
+        if context is not None and context.shape[1] > 0:
+            ce = self.sens_enc(context)
+            state = (context_state if context_state is not None
+                     else torch.zeros(B, context.shape[1], dtype=torch.long, device=dev))
+            ce = ce + self.type_embed(state.clamp(0, 1) + 1)  # types 1, 2
+            tokens.append(ce)
+            masks.append(context_mask if context_mask is not None
+                         else torch.zeros(B, context.shape[1], dtype=torch.bool, device=dev))
+
+        if cond is not None:
+            ct = self.cond_embed(cond).unsqueeze(1) + self.type_embed.weight[3]
+            tokens.append(ct)
+            masks.append(cond_mask.unsqueeze(1) if cond_mask is not None
+                         else torch.zeros(B, 1, dtype=torch.bool, device=dev))
+
+        s = torch.cat(tokens, dim=1)
+        full_mask = torch.cat(masks, dim=1)
         for blk in self.self_blocks:
-            s = blk(s, mask=sensor_mask)
+            s = blk(s, mask=full_mask)
         q = self.query_enc(queries)
         for blk in self.cross_blocks:
-            q = blk(q, ctx=s, mask=sensor_mask)
+            q = blk(q, ctx=s, mask=full_mask)
         return self.head(q).squeeze(-1)  # (B, Q) — θ units
+
+    @torch.no_grad()
+    def board_embedding(self, context, context_state=None, context_mask=None):
+        """Pooled board token from context points alone (visualization/analysis)."""
+        B = context.shape[0]
+        dev = context.device
+        state = (context_state if context_state is not None
+                 else torch.zeros(B, context.shape[1], dtype=torch.long, device=dev))
+        s = self.sens_enc(context) + self.type_embed(state.clamp(0, 1) + 1)
+        mask = (context_mask if context_mask is not None
+                else torch.zeros(B, context.shape[1], dtype=torch.bool, device=dev))
+        for blk in self.self_blocks:
+            s = blk(s, mask=mask)
+        w = (~mask).float().unsqueeze(-1)
+        return (s * w).sum(1) / w.sum(1).clamp(min=1.0)  # (B, d_model)
 
 
 def save_checkpoint(path: Path | str, model: ThermalOperatorV2, extra: dict | None = None) -> None:

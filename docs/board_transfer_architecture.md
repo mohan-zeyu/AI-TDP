@@ -1,4 +1,10 @@
-# Board-Transfer Architecture (v2.5 proposal) — in-context board conditioning
+# Board-Transfer Architecture (v2.5) — in-context board conditioning
+
+> **Status: implemented 2026-07-10** (multi-state boards with shared LU, typed
+> context tokens, context/cond dropout, fair-K dual validation; 20 tests green).
+> Smoke evidence: val RMSE 0.296 (ctx) vs 0.349 (no-ctx) at 12 epochs; the
+> cross-state matched-K gain is the M5 full-run acceptance metric. The InfoNCE
+> auxiliary and Q̂-decoder head remain optional follow-ups.
 
 Problem: in v2, "which board this is" lives only in fine-tuned weights. Every new
 board ⇒ its own gradient run, own checkpoint, forgetting risk, no explicit board

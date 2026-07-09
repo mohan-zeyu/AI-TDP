@@ -62,6 +62,23 @@ The authoritative spec for how the operator is trained and evaluated. Code:
   tries). Rationale: an all-blind sensor set makes the amplitude unidentifiable
   and destabilizes normalized targets; real layouts always cover the hot units.
 
+### 2.2b In-context board conditioning (v2.5 — see `board_transfer_architecture.md`)
+
+- A *board* has `states_per_board = 3` operating states (same layout, per-source
+  amplitudes re-drawn; 15% chance a source is off, ≥1 stays on); one LU
+  factorization per board serves all states.
+- With p = 1 − context_dropout (0.8): 1–2 reference frames of *other* states are
+  subsampled to 64–192 points each, normalized by their own scale (context
+  carries the board's field *shape*; live sensors carry the current amplitude),
+  and enter the attention set with type embeddings (frame A / frame B).
+- With context present, K may drop to 2 (context must carry); the condition
+  token is dropped with p = 0.3 (physics inferable from context).
+- Context dropout keeps the no-context v2 mode fully functional; a fully-masked
+  context is bit-identical to no context (unit-tested).
+- Validation reports ctx and no-ctx RMSE with the *same* K range (fair-K);
+  K-curves run down to K = 2 where the context benefit must appear first.
+  Smoke (12 epochs): ctx 0.296 vs no-ctx 0.349.
+
 ### 2.3 Losses
 
 - Data: `L_data = MSE(θ̂, θ/s)` at 384 random query points.
@@ -90,7 +107,9 @@ is a controlled twin, not a historical notebook.
 
 - FDM O(h²) manufactured-solution test green (`tests/test_fdm.py`); ✅
 - smoke run (`--small`, ~3 min) K-curve monotone; ✅ (0.32→0.25 for K=4→16)
-- full run: val RMSE(θ′) stable, K-curve monotone, amplitude-invariance exact.
+- full run: val RMSE(θ′) stable, K-curve monotone, amplitude-invariance exact,
+  **and a clear cross-state context gain at K ≤ 4** (v2.5 acceptance; if absent,
+  fallbacks: longer training, larger n_context, context curriculum).
 - Local smoke: `uv run scripts/run_pretrain.py --small` (MPS double-backward
   verified working). Full: same command on Colab GPU (`pip install -e .` first),
   then the twin.

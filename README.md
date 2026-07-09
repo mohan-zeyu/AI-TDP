@@ -33,11 +33,14 @@ for the full (Chinese) competition narrative and literature anchors.
 2. **Operator** (`tdp.model.operator`): sensor set → Fourier features + self-attention
    (permutation/count invariant) → cross-attention from query coordinates → θ(x,y),
    plus one condition token [log ĥ, log γ, aspect, BC].
-3. **Pretraining** (`tdp.train.pretrain`): 4096 randomized rectangular scenarios
+3. **Pretraining** (`tdp.train.pretrain`): 4096 randomized rectangular *boards*
    (aspect, ĥ ∈ log-U[0.3,30] — range measured from our board, BC type, 1–5
-   analytic sources), random-K + board-layout sensor curriculum with measured
-   noise levels, MSE + self-normalized autograd PDE residual (λ ramped to 1e-3).
-   A λ=0 twin provides the physics ablation.
+   analytic sources), each with several operating states; random-K +
+   board-layout sensor curriculum with measured noise levels, MSE +
+   self-normalized autograd PDE residual (λ ramped to 1e-3). A λ=0 twin
+   provides the physics ablation. **v2.5 in-context board conditioning**:
+   reference frames of a board enter as typed attention tokens → zero-gradient
+   adaptation to new boards (`docs/board_transfer_architecture.md`).
 4. **Per-board fine-tuning** (M7, upcoming): trust-masked dense IR supervision
    (tape regions are the core supervision; small validation patches within the
    trusted area are held out for model selection and honest spatial metrics),

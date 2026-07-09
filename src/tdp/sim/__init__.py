@@ -1,3 +1,3 @@
-from tdp.sim.fdm import bilinear, grid_coords, solve_steady
+from tdp.sim.fdm import bilinear, factorize_steady, grid_coords, solve_steady, solve_with
 
-__all__ = ["bilinear", "grid_coords", "solve_steady"]
+__all__ = ["bilinear", "factorize_steady", "grid_coords", "solve_steady", "solve_with"]

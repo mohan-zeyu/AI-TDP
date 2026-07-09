@@ -16,6 +16,8 @@ scenario:
   rel_amp: [0.2, 1.0]
   base_amp: 200.0
   margin: 0.12
+  states_per_board: 3
+  source_off_prob: 0.15
 
 train:
   n_train: 4096
@@ -35,6 +37,13 @@ train:
   layout_prob: 0.2
   noise_theta_max: 0.10
   board_aspect_frac: 0.25
+  # v2.5 in-context board conditioning
+  k_min_ctx: 2
+  context_dropout: 0.2
+  cond_dropout: 0.3
+  n_context: [64, 192]
+  context_two_frames_prob: 0.5
+  context_self_prob: 0.2
   seed: 0
 
 model:

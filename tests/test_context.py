@@ -1,0 +1,101 @@
+"""v2.5 in-context conditioning: multi-state boards, context tokens, masking."""
+
+import numpy as np
+import torch
+
+from tdp.model.operator import ModelConfig, ThermalOperatorV2
+from tdp.sim.fdm import solve_steady
+from tdp.sim.scenarios import ScenarioConfig, random_board, sample_context
+from tdp.train.pretrain import OperatorDataset, TrainConfig, collate
+
+
+def test_board_states_share_layout_differ_in_amps():
+    rng = np.random.default_rng(3)
+    board = random_board(rng, ScenarioConfig(ny=48, states_per_board=3))
+    assert len(board.states) == 3
+    s0, s1 = board.states[0], board.states[1]
+    assert s0.layout is s1.layout
+    assert not np.allclose(s0.amps, s1.amps)
+    assert not np.allclose(s0.theta, s1.theta)
+
+
+def test_lu_reuse_matches_fresh_solve():
+    rng = np.random.default_rng(4)
+    board = random_board(rng, ScenarioConfig(ny=48, states_per_board=2))
+    st = board.states[0]
+    lay = board.layout
+    nx = st.theta.shape[1]
+    from tdp.sim.fdm import grid_coords
+
+    X, Y = grid_coords(st.theta.shape[0], nx, lay.aspect)
+    q = np.zeros_like(X)
+    for a, s in zip(st.amps, lay.sources):
+        q += a * s.q_unit(X, Y)
+    fresh = solve_steady(q, lay.aspect, lay.h_hat,
+                         bc="robin" if lay.robin else "dirichlet",
+                         gamma=lay.gamma if lay.robin else 0.0)
+    np.testing.assert_allclose(st.theta, fresh, atol=1e-4)
+
+
+def test_masked_context_equals_no_context():
+    torch.manual_seed(0)
+    model = ThermalOperatorV2(ModelConfig(d_model=32, n_fourier=8)).eval()
+    B, K, Q, M = 2, 5, 7, 6
+    sensors = torch.randn(B, K, 3)
+    queries = torch.rand(B, Q, 2)
+    cond = torch.randn(B, 4)
+    ctx = torch.randn(B, M, 3)
+    ctx_state = torch.zeros(B, M, dtype=torch.long)
+    all_masked = torch.ones(B, M, dtype=torch.bool)
+    with torch.no_grad():
+        plain = model(sensors, queries, cond)
+        masked = model(sensors, queries, cond, context=ctx,
+                       context_state=ctx_state, context_mask=all_masked)
+    torch.testing.assert_close(plain, masked, atol=1e-5, rtol=1e-4)
+
+
+def test_context_changes_prediction():
+    torch.manual_seed(0)
+    model = ThermalOperatorV2(ModelConfig(d_model=32, n_fourier=8)).eval()
+    sensors = torch.randn(1, 4, 3)
+    queries = torch.rand(1, 9, 2)
+    cond = torch.randn(1, 4)
+    ctx = torch.randn(1, 12, 3)
+    st = torch.zeros(1, 12, dtype=torch.long)
+    with torch.no_grad():
+        a = model(sensors, queries, cond)
+        b = model(sensors, queries, cond, context=ctx, context_state=st)
+    assert not torch.allclose(a, b)
+
+
+def test_dataset_and_collate_shapes():
+    rng_cfg = ScenarioConfig(ny=32, states_per_board=3)
+    boards = [random_board(np.random.default_rng(i), rng_cfg) for i in range(4)]
+    tcfg = TrainConfig(n_query=16, n_colloc=8, n_context=(8, 12),
+                       context_dropout=0.5, k_min_ctx=2)
+    ds = OperatorDataset(boards, tcfg, layout=None, base_seed=0)
+    batch = collate([ds[i] for i in range(len(boards))])
+    (sensors, s_mask, q_xy, q_theta, c_xy, q_over_s,
+     cond, cond_drop, h_hat, ctx, ctx_state, ctx_mask) = batch
+    B = len(boards)
+    assert sensors.shape[0] == B and sensors.shape[2] == 3
+    assert s_mask.dtype == torch.bool
+    assert q_xy.shape == (B, 16, 2) and q_theta.shape == (B, 16)
+    assert cond.shape == (B, 4) and h_hat.shape == (B,)
+    if ctx is not None:
+        assert ctx.shape[0] == B and ctx.shape[2] == 3
+        assert ctx_state.shape == ctx.shape[:2] == ctx_mask.shape
+    # forward pass with the batch runs
+    model = ThermalOperatorV2(ModelConfig(d_model=32, n_fourier=8))
+    out = model(sensors, q_xy, cond, sensor_mask=s_mask, context=ctx,
+                context_state=ctx_state, context_mask=ctx_mask, cond_mask=cond_drop)
+    assert out.shape == (B, 16)
+
+
+def test_sample_context_normalized():
+    rng = np.random.default_rng(5)
+    board = random_board(rng, ScenarioConfig(ny=32, states_per_board=1))
+    pts, state = sample_context(board.states[0], rng, 20, frame_idx=1)
+    assert pts.shape == (20, 3)
+    assert state.tolist() == [1] * 20
+    assert pts[:, 2].max() <= 1.0 + 1e-6
