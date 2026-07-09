@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 600" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <radialGradient id="hot1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f97316"/><stop offset="100%" stop-color="#fde68a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="hot2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#dc2626"/><stop offset="100%" stop-color="#fde68a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="600" fill="#ffffff"/>
+  <text x="540" y="30" text-anchor="middle" font-size="19" font-weight="bold" fill="#0f172a">v2.5 pretraining — one training item</text>
+
+  <!-- ============ BOARD ============ -->
+  <rect x="20" y="70" width="216" height="118" rx="8" fill="#f8fafc" stroke="#0f172a" stroke-width="1.6"/>
+  <text x="128" y="94" text-anchor="middle" font-size="13" font-weight="bold" fill="#0f172a">Board (randomized)</text>
+  <text x="128" y="114" text-anchor="middle" font-size="12" fill="#334155">layout: sources phi_i (1–5)</text>
+  <text x="128" y="132" text-anchor="middle" font-size="12" fill="#334155">physics: ĥ, γ, BC, aspect a</text>
+  <text x="128" y="152" text-anchor="middle" font-size="12" fill="#334155">one LU factorization</text>
+  <text x="128" y="172" text-anchor="middle" font-size="12" font-style="italic" fill="#64748b">state j:  θ(j) = Σ a_i(j) · phi_i(x)</text>
+
+  <!-- ============ STATES ============ -->
+  <!-- state 1 -->
+  <rect x="296" y="62" width="120" height="76" rx="6" fill="#fffbeb" stroke="#16a34a" stroke-width="1.5"/>
+  <ellipse cx="336" cy="96" rx="22" ry="14" fill="url(#hot1)"/>
+  <ellipse cx="384" cy="118" rx="14" ry="10" fill="url(#hot2)"/>
+  <text x="356" y="78" text-anchor="middle" font-size="11" font-weight="bold" fill="#14532d">state 1 · amps a(1)</text>
+  <!-- state 2 -->
+  <rect x="296" y="156" width="120" height="76" rx="6" fill="#fffbeb" stroke="#0d9488" stroke-width="1.5"/>
+  <ellipse cx="336" cy="192" rx="22" ry="14" fill="url(#hot2)"/>
+  <ellipse cx="384" cy="210" rx="14" ry="10" fill="url(#hot1)" opacity="0.35"/>
+  <text x="356" y="172" text-anchor="middle" font-size="11" font-weight="bold" fill="#134e4a">state 2 · amps a(2)</text>
+  <!-- state 3 = target -->
+  <rect x="296" y="250" width="120" height="76" rx="6" fill="#fffbeb" stroke="#7c3aed" stroke-width="2.5"/>
+  <ellipse cx="336" cy="286" rx="24" ry="15" fill="url(#hot2)"/>
+  <ellipse cx="384" cy="302" rx="15" ry="10" fill="url(#hot2)" opacity="0.6"/>
+  <text x="356" y="266" text-anchor="middle" font-size="11" font-weight="bold" fill="#4c1d95">state 3 = TARGET</text>
+
+  <line x1="236" y1="105" x2="296" y2="100" stroke="#334155" stroke-width="1.4" marker-end="url(#arr2)"/>
+  <line x1="236" y1="130" x2="296" y2="194" stroke="#334155" stroke-width="1.4" marker-end="url(#arr2)"/>
+  <line x1="236" y1="155" x2="296" y2="288" stroke="#334155" stroke-width="1.4" marker-end="url(#arr2)"/>
+
+  <text x="356" y="346" text-anchor="middle" font-size="11" fill="#64748b">same layout, re-drawn per-source</text>
+  <text x="356" y="361" text-anchor="middle" font-size="11" fill="#64748b">amplitudes (15% chance: source off)</text>
+
+  <!-- ============ CONTEXT BRANCH ============ -->
+  <rect x="478" y="70" width="240" height="104" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="598" y="93" text-anchor="middle" font-size="13" font-weight="bold" fill="#14532d">Context sampling  (p = 0.8)</text>
+  <text x="598" y="113" text-anchor="middle" font-size="12" fill="#14532d">1–2 frames from non-target states</text>
+  <text x="598" y="131" text-anchor="middle" font-size="12" fill="#14532d">64–192 points per frame</text>
+  <text x="598" y="149" text-anchor="middle" font-size="12" fill="#14532d">values / own max  (shape only)</text>
+  <line x1="416" y1="100" x2="478" y2="108" stroke="#334155" stroke-width="1.4" marker-end="url(#arr2)"/>
+  <line x1="416" y1="194" x2="478" y2="140" stroke="#334155" stroke-width="1.4" marker-end="url(#arr2)"/>
+
+  <!-- ============ SENSOR BRANCH ============ -->
+  <rect x="478" y="220" width="240" height="118" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="598" y="243" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e3a8a">Live sensors from target</text>
+  <text x="598" y="263" text-anchor="middle" font-size="12" fill="#1e3a8a">K ∈ {2…16} (random or board layout)</text>
+  <text x="598" y="281" text-anchor="middle" font-size="12" fill="#1e3a8a">noise σ ~ U[0, 0.1] · s = max reading</text>
+  <text x="598" y="299" text-anchor="middle" font-size="12" fill="#1e3a8a">inputs (x, y, θ/s)</text>
+  <text x="598" y="322" text-anchor="middle" font-size="12" fill="#7c2d12">+ cond token [ĥ, γ, a, BC] (dropped 30%)</text>
+  <line x1="416" y1="288" x2="478" y2="280" stroke="#334155" stroke-width="1.4" marker-end="url(#arr2)"/>
+
+  <!-- ============ MODEL ============ -->
+  <rect x="780" y="180" width="168" height="96" rx="10" fill="#e2e8f0" stroke="#0f172a" stroke-width="2"/>
+  <text x="864" y="216" text-anchor="middle" font-size="14" font-weight="bold" fill="#0f172a">ThermalOperator</text>
+  <text x="864" y="236" text-anchor="middle" font-size="14" font-weight="bold" fill="#0f172a">v2.5</text>
+  <text x="864" y="258" text-anchor="middle" font-size="11" fill="#475569">(see architecture figure)</text>
+  <line x1="718" y1="122" x2="780" y2="200" stroke="#334155" stroke-width="1.6" marker-end="url(#arr2)"/>
+  <line x1="718" y1="279" x2="780" y2="240" stroke="#334155" stroke-width="1.6" marker-end="url(#arr2)"/>
+
+  <!-- ============ QUERIES / COLLOCATION ============ -->
+  <rect x="478" y="392" width="240" height="58" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.6"/>
+  <text x="598" y="415" text-anchor="middle" font-size="12" font-weight="bold" fill="#4c1d95">384 query points (targets θ/s)</text>
+  <text x="598" y="434" text-anchor="middle" font-size="12" fill="#4c1d95">+ 192 collocation points (PDE)</text>
+  <line x1="718" y1="421" x2="800" y2="276" stroke="#334155" stroke-width="1.4" marker-end="url(#arr2)"/>
+
+  <!-- ============ LOSSES ============ -->
+  <rect x="778" y="330" width="284" height="52" rx="8" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.6"/>
+  <text x="920" y="352" text-anchor="middle" font-size="12" font-weight="bold" fill="#713f12">L_data = MSE(pred, θ/s) at query points</text>
+  <text x="920" y="370" text-anchor="middle" font-size="11" fill="#713f12">target ≠ context states ⇒ cross-state supervision</text>
+
+  <rect x="778" y="402" width="284" height="70" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.6"/>
+  <text x="920" y="424" text-anchor="middle" font-size="12" font-weight="bold" fill="#7f1d1d">L_pde at collocation points (autograd)</text>
+  <text x="920" y="443" text-anchor="middle" font-size="11" fill="#7f1d1d">R = (lap θ − ĥ·θ + Q/s) / (|lap θ| + |ĥθ| + |Q/s| + 1)</text>
+  <text x="920" y="461" text-anchor="middle" font-size="11" fill="#7f1d1d">self-normalized ⇒ λ stays a light regularizer</text>
+
+  <line x1="880" y1="276" x2="900" y2="330" stroke="#334155" stroke-width="1.6" marker-end="url(#arr2)"/>
+  <path d="M 782 268 L 746 268 L 746 437 L 778 437" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arr2)"/>
+
+  <rect x="778" y="494" width="284" height="42" rx="8" fill="#f1f5f9" stroke="#475569" stroke-width="1.6"/>
+  <text x="920" y="520" text-anchor="middle" font-size="13" font-weight="bold" fill="#0f172a">L = L_data + λ(t) · L_pde,   λ: 0 → 1e-3 ramp</text>
+  <line x1="920" y1="472" x2="920" y2="494" stroke="#334155" stroke-width="1.6" marker-end="url(#arr2)"/>
+
+  <!-- ============ WHY ============ -->
+  <rect x="20" y="440" width="420" height="96" rx="8" fill="#f0f9ff" stroke="#0284c7" stroke-width="1.6"/>
+  <text x="230" y="464" text-anchor="middle" font-size="13" font-weight="bold" fill="#0c4a6e">Why in-context transfer works (linearity)</text>
+  <text x="230" y="486" text-anchor="middle" font-size="12" fill="#0c4a6e">every state:  θ = Σ a_i · phi_i(x)</text>
+  <text x="230" y="505" text-anchor="middle" font-size="12" fill="#0c4a6e">context frames reveal the board basis {phi_i}</text>
+  <text x="230" y="523" text-anchor="middle" font-size="12" fill="#0c4a6e">live sensors pin the current coefficients {a_i}</text>
+
+  <text x="22" y="572" font-size="12" fill="#475569">New board at deployment: hand one calibration frame in as context — no gradient steps. Fine-tuning / board-token refinement = optional polish.</text>
+</svg>

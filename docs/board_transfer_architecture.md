@@ -11,6 +11,8 @@ board ⇒ its own gradient run, own checkpoint, forgetting risk, no explicit boa
 representation. Goal: the board becomes something the model *reads at inference*,
 so transfer = handing over a cheap observation, not retraining.
 
+![ThermalOperator v2.5 — forward pass](assets/operator_v25.svg)
+
 ## Requirements for a board representation
 
 1. **Task-sufficient** — carries what field prediction needs (source layout,
@@ -45,14 +47,10 @@ Corollaries that shape the design:
 - ĥ/γ are inferable from context → the oracle condition token becomes optional
   (dropped stochastically in training; kept for synthetic diagnostics).
 
-## Architecture delta (v2 → v2.5, ~50 lines)
+## Architecture delta (v2 → v2.5)
 
-```
-sensors (K,3) ──SensorEncoder──┐
-context pts (M,3) ─SensorEncoder─ +type embedding ──┤ concat → self-attention set
-cond token (optional, dropout) ─────────────────────┘
-queries ── cross-attention over the whole set ── head → θ̂
-```
+The forward-pass figure above shows the full token flow (shapes and layer sizes
+match `src/tdp/model/operator.py` exactly). Deltas relative to v2:
 
 - ContextEncoder = the existing SensorEncoder + a learned **type embedding**
   (live-sensor vs context-point vs cond-token). No new mechanism.
@@ -66,6 +64,8 @@ queries ── cross-attention over the whole set ── head → θ̂
   ↔ close), optional Q̂-decoder head.
 
 ## Training changes
+
+![v2.5 pretraining — one training item](assets/training_scheme_v25.svg)
 
 - Scenario generator: a *board* = layout + physics; sample **S = 2–4 states**
   per board by re-drawing per-source amplitudes (occasionally switching sources
