@@ -61,6 +61,18 @@ User: per-board calibration must stay light; effort on units that matter. Tape
 is lab-only instrumentation; count affects validation statistics only.
 → `m3_data_requirements.md` B1.
 
+**2026-07-11 — Physics-ablation finding (λ=0 twin, same seed/data): the PDE
+residual is not the load-bearing element; the physics enters via the data.**
+Synthetic in-distribution: tied (val 0.0773 vs 0.0768; K-curve +1–7% for PDE).
+Real zero-shot: PDE better in 3/4 settings, decisively in the sensor-starved
+regime (no-ctx hotspot 4 px vs 34 px). Real after Tier-1: within test noise
+(case02 3.08 vs 3.01 °C; patches favor PDE 1.57 vs 1.69 °C). Interpretation for
+the report: the pipeline's "physics-informed" content lives in the FDM-generated
+training distribution, the nondimensional contract, and measured parameter
+bounds — the residual term adds a robustness margin where information is
+scarce, not a headline accuracy gain. Stated plainly; the twin table is the
+evidence. → M8 ablation column, `models/boards/pi4b_s1_nopde_report.json`.
+
 **2026-07-11 — Fine-tuning = board-token adaptation, not full-weight training.**
 User challenged full fine-tuning; with v2.5 the board is an explicit input, so
 adaptation moves to representation space: freeze the 1.06M backbone, learn ~8

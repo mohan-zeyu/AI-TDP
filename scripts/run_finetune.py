@@ -77,6 +77,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", type=Path, default=ROOT / "models" / "v2" / "pretrain_v2.pt")
     ap.add_argument("--steps", type=int, default=600)
+    ap.add_argument("--card-name", default="pi4b_s1",
+                    help="board-card file stem under models/boards/")
     args = ap.parse_args()
 
     model, ckpt = load_checkpoint(args.ckpt)
@@ -142,15 +144,15 @@ def main():
     fig.suptitle(f"M7 Tier-1: frozen backbone + {card.tokens.shape[1]} board tokens "
                  f"(λ={lam_best:g}, ĥ={hist['h_hat']:.2f})", fontsize=12)
     fig.tight_layout()
-    fig.savefig(QC / "finetune_tier1.png", dpi=110)
+    fig.savefig(QC / f"finetune_tier1_{args.card_name}.png", dpi=110)
 
-    card_path = ROOT / "models" / "boards" / "pi4b_s1.pt"
+    card_path = ROOT / "models" / "boards" / f"{args.card_name}.pt"
     card.save(card_path, meta={
         "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "checkpoint": args.ckpt.name, "lambda_pde": lam_best,
         "train_cases": [c.case_id for c in train_cases], "session": "s1",
     })
-    (ROOT / "models" / "boards" / "pi4b_s1_report.json").write_text(
+    (ROOT / "models" / "boards" / f"{args.card_name}_report.json").write_text(
         json.dumps(report, indent=2), encoding="utf-8")
     n_train = sum(p.numel() for p in card.parameters())
     print(f"\nboard card: {card_path.relative_to(ROOT)} "
