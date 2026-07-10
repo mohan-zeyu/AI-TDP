@@ -61,6 +61,15 @@ User: per-board calibration must stay light; effort on units that matter. Tape
 is lab-only instrumentation; count affects validation statistics only.
 → `m3_data_requirements.md` B1.
 
+**2026-07-11 — Fine-tuning = board-token adaptation, not full-weight training.**
+User challenged full fine-tuning; with v2.5 the board is an explicit input, so
+adaptation moves to representation space: freeze the 1.06M backbone, learn ~8
+board tokens (+ log ĥ, log γ) ≈ 1k params, warm-started from encoded context.
+Matches n_eff ≈ 30 real frames; forgetting impossible → replay unnecessary;
+deployable "board card" = few KB. Head-only unfreeze = fallback; full FT with
+replay = M8 upper-bound ablation only. Eval discipline unchanged (validation
+patches, λ grid incl. 0, untouched test cases). → `training_protocol.md` §4.3.
+
 **2026-07-10 — v2.5 in-context board conditioning adopted, before the full pretrain.**
 User wanted an explicit board representation for cross-board transfer
 (contrastive-embedding instinct). Chosen mechanism: boards get multiple

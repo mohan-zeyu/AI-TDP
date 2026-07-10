@@ -145,28 +145,38 @@ Trust mask construction: annotated tape-region polygons + solder-mask default,
 minus annotated shiny-metal regions (connectors; bare SoC in config A); refined
 by the session-2 cold-isothermal bias map when available.
 
-### 4.3 One training step
+### 4.3 The adaptation ladder (v2.5 revision, 2026-07-11 — user decision:
+### do NOT fine-tune all weights; adapt in representation space)
 
-1. Pick a real frame (50%) or a fresh synthetic scenario (50%, replay —
-   anti-forgetting; we own the simulator, replay strictly dominates freezing).
-2. Real branch: ambient = border median; pick K sensors from the sites (jitter
-   ±1 px, use 3×3 median values); ΔT_s from those readings; normalize.
-3. Queries: ~512 pixels sampled from the supervision mask ∝ 1/σ²-weighted MSE.
-4. PDE: collocation points outside dilated component rectangles
-   (`configs/source_mask_board.json`); residual uses **learnable log ĥ and
-   log γ** (fed through the condition token; init from M2: log ĥ₀ = 0, weak
-   prior `λ_prior·(log ĥ − log ĥ₀)²` with λ_prior small — M2 only bounded ĥ ≲ 3).
-5. Optimizer: AdamW, model lr 1e-4 → 1e-5 cosine; (log ĥ, log γ) lr 1e-2;
-   300–1000 steps; early stop on validation-patch RMSE.
-6. λ_pde ∈ {0, 1e-5, 1e-4, 1e-3, 1e-2} — selected on validation patches only;
-   λ = 0 in the grid means the physics is allowed to lose.
+| Tier | Trainables | Params | Forgetting | When |
+|---|---|---|---|---|
+| 0 | none (context frames in) | 0 | impossible | done — the zero-shot baseline every tier must beat |
+| **1 (primary)** | **N≈8 board tokens + log ĥ + log γ** | **~1k** | impossible (backbone frozen) → **no replay needed** | always |
+| 2 (fallback) | + output head (or last cross block) | ~33k | limited to decode path; light replay optional | only if Tier 1 saturates with residual structure at the patches |
+| 3 (ablation) | all weights, lr 1e-4→1e-5, 50/50 synthetic replay | 1.06M | mitigated by replay | run once for the M8 upper-bound column |
+
+Board tokens enter through the context-token interface (reusing the context
+type embedding — no new architecture, no checkpoint surgery), warm-started
+from the encoded real reference frames. Rationale: real n_eff ≈ 30 independent
+frames; matching ~10³ trainables to that is statistics, not asceticism. The
+resulting **board card** ({tokens, ĥ, γ} — a few KB) is the deployable per-board
+artifact: swap boards by swapping cards, one shared backbone.
+
+Per-step recipe (all tiers): ambient = border median; K sensors from annotated
+sites (3×3 medians, ±1 px jitter); queries ~512 px from the supervision mask,
+1/σ²-weighted; PDE collocation outside dilated source rects with the learnable
+log ĥ (weak prior to the measured bound) and log γ; 300–800 steps, early stop
+on validation-patch RMSE; λ_pde ∈ {0, 1e-5, 1e-4, 1e-3, 1e-2} selected on the
+patches only (λ = 0 means physics is allowed to lose).
 
 ### 4.4 Acceptance (M7)
 
-- validation-patch RMSE ≥ 20% better than zero-shot;
-- fitted ĥ consistent with the measured bound (≲3) and the post-annotation
-  source-masked re-estimate;
-- synthetic-val regression < 10% (replay working).
+- validation-patch RMSE ≥ 20% better than zero-shot (Tier 1), and the peak
+  (max-T) underestimate substantially closed;
+- fitted ĥ consistent with the measured bound (≲3);
+- Tier-3 ablation reported: if Tier 1 captures most of its gain, the headline
+  is "per-board calibration = 10³ parameters in a minute"; if not, Tier 2/3
+  becomes the path and we say so.
 
 ## 5. Testing & reporting (M8)
 
