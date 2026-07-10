@@ -100,3 +100,5 @@ Pipfile.lock
 data/processed/
 models/v2/
 models/scratch/
+models/boards/*.ts
+models/boards/*.onnx
