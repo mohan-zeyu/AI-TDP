@@ -1,0 +1,40 @@
+{
+  "coords": "fractional crop coords (u0,v0,u1,v1); dilate ~4 px before source-free PDE masking",
+  "rects": [
+    {
+      "id": "soc",
+      "u0": 0.24,
+      "v0": 0.49,
+      "u1": 0.55,
+      "v1": 0.74
+    },
+    {
+      "id": "ram",
+      "u0": 0.56,
+      "v0": 0.52,
+      "u1": 0.78,
+      "v1": 0.7
+    },
+    {
+      "id": "usb_ctrl",
+      "u0": 0.62,
+      "v0": 0.22,
+      "u1": 0.84,
+      "v1": 0.38
+    },
+    {
+      "id": "pmic",
+      "u0": 0.04,
+      "v0": 0.62,
+      "u1": 0.24,
+      "v1": 0.84
+    },
+    {
+      "id": "connector_band",
+      "u0": 0.0,
+      "v0": 0.0,
+      "u1": 1.0,
+      "v1": 0.13
+    }
+  ]
+}

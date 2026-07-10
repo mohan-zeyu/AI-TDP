@@ -1,0 +1,86 @@
+{
+  "generated_at": "2026-07-10T13:05:22+00:00",
+  "coords": "fractional crop coords: u = col/width (short side), v = row/height (long side, v down); session-1 orientation",
+  "source": "assets/Taged_Chip.png + canonical-field snapping (SoC=hotspot argmax)",
+  "sampling": "3x3 median at the site pixel",
+  "sites": [
+    {
+      "id": "soc",
+      "u": 0.3941,
+      "v": 0.6601,
+      "trusted_sessions": [
+        "s1",
+        "s2"
+      ],
+      "note": "SoC lid, under tape sheet (hotspot)"
+    },
+    {
+      "id": "ram",
+      "u": 0.6144,
+      "v": 0.6489,
+      "trusted_sessions": [
+        "s1",
+        "s2"
+      ],
+      "note": "LPDDR4, under tape sheet"
+    },
+    {
+      "id": "usb_ctrl",
+      "u": 0.7161,
+      "v": 0.3343,
+      "trusted_sessions": [
+        "s1",
+        "s2"
+      ],
+      "note": "VL805 area (exposed chip in photo)"
+    },
+    {
+      "id": "pmic",
+      "u": 0.2076,
+      "v": 0.6938,
+      "trusted_sessions": [
+        "s1",
+        "s2"
+      ],
+      "note": "power circuitry, under tape edge"
+    },
+    {
+      "id": "mid_solder",
+      "u": 0.5042,
+      "v": 0.4242,
+      "trusted_sessions": [
+        "s1",
+        "s2"
+      ],
+      "note": "bare solder mask, mid board"
+    },
+    {
+      "id": "corner_cold",
+      "u": 0.1059,
+      "v": 0.9354,
+      "trusted_sessions": [
+        "s1",
+        "s2"
+      ],
+      "note": "PCB corner, coldest trusted region"
+    },
+    {
+      "id": "eth_shield",
+      "u": 0.1653,
+      "v": 0.0534,
+      "trusted_sessions": [
+        "s2"
+      ],
+      "note": "Ethernet shield \u2014 tape-wrapped in s2 only"
+    },
+    {
+      "id": "usb_shield",
+      "u": 0.6059,
+      "v": 0.0421,
+      "trusted_sessions": [
+        "s2"
+      ],
+      "note": "USB stack shield \u2014 tape-wrapped in s2 only"
+    }
+  ]
+}

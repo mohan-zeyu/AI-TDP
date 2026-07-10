@@ -52,11 +52,24 @@ def grid_xy(shape: tuple[int, int]) -> np.ndarray:
     return px_to_xy(rr.ravel(), cc.ravel(), n_rows=shape[0], n_cols=shape[1])
 
 
-def sensors_at_sites(field: np.ndarray, amb: float) -> tuple[np.ndarray, np.ndarray, float]:
-    """Placeholder sites (u,v) -> (K,2) nondim coords + readings (3x3 median)."""
+def load_sites(session: str) -> np.ndarray:
+    """(u, v) sites for a session from configs/sensors_board.json (fallback: placeholder)."""
+    cfg_path = ROOT / "configs" / "sensors_board.json"
+    if cfg_path.exists():
+        import json
+
+        sites = json.loads(cfg_path.read_text(encoding="utf-8"))["sites"]
+        uv = [(s["u"], s["v"]) for s in sites if session in s["trusted_sessions"]]
+        return np.asarray(uv)
+    return PLACEHOLDER_BOARD_LAYOUT
+
+
+def sensors_at_sites(field: np.ndarray, amb: float,
+                     uv: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+    """Sites (u,v) -> (K,2) nondim coords + readings (3x3 median)."""
     h, w = field.shape
-    rows = np.clip((PLACEHOLDER_BOARD_LAYOUT[:, 1] * h).astype(int), 1, h - 2)
-    cols = np.clip((PLACEHOLDER_BOARD_LAYOUT[:, 0] * w).astype(int), 1, w - 2)
+    rows = np.clip((uv[:, 1] * h).astype(int), 1, h - 2)
+    cols = np.clip((uv[:, 0] * w).astype(int), 1, w - 2)
     vals = np.array([np.median(field[r - 1:r + 2, c - 1:c + 2]) for r, c in zip(rows, cols)])
     xy = px_to_xy(rows, cols, n_rows=h, n_cols=w)
     dT = max(vals.max() - amb, 1.0)
@@ -88,10 +101,11 @@ def predict(model, sens_xy, sens_theta, q_xy, ctx=None, ctx_state=None, chunk=40
     return np.concatenate(outs)
 
 
-def evaluate_target(name, model, target, amb, ctx_field, ctx_amb):
+def evaluate_target(name, model, target, amb, ctx_field, ctx_amb,
+                    session: str, trust_path: Path | None):
     h, w = target.shape
     q_xy = grid_xy(target.shape)
-    s_xy, s_vals, dT = sensors_at_sites(target, amb)
+    s_xy, s_vals, dT = sensors_at_sites(target, amb, load_sites(session))
     theta_s = (s_vals - amb) / dT
     ctx, ctx_state = context_points(ctx_field, ctx_amb)
 
@@ -99,7 +113,10 @@ def evaluate_target(name, model, target, amb, ctx_field, ctx_amb):
     pred_noctx = predict(model, s_xy, theta_s, q_xy).reshape(h, w) * dT + amb
     rbf = RBFInterpolator(s_xy, s_vals, kernel="thin_plate_spline")(q_xy).reshape(h, w)
 
-    hot = target - amb > 3.0  # crude artifact exclusion (connector shields read ~ambient)
+    if trust_path is not None and trust_path.exists():
+        trusted = np.load(trust_path)["trusted"]
+    else:
+        trusted = target - amb > 3.0
     res = {}
     for tag, pred in [("model+ctx", pred_ctx), ("model", pred_noctx), ("RBF", rbf)]:
         err = pred - target
@@ -107,7 +124,7 @@ def evaluate_target(name, model, target, amb, ctx_field, ctx_amb):
         pk_p = np.unravel_index(np.argmax(pred), pred.shape)
         res[tag] = {
             "rmse_all": float(np.sqrt((err ** 2).mean())),
-            "rmse_hot": float(np.sqrt((err[hot] ** 2).mean())),
+            "rmse_trust": float(np.sqrt((err[trusted] ** 2).mean())),
             "max_T_err": float(pred.max() - target.max()),
             "hotspot_dist_px": float(np.hypot(pk_p[0] - pk_t[0], pk_p[1] - pk_t[1])),
         }
@@ -125,7 +142,7 @@ def evaluate_target(name, model, target, amb, ctx_field, ctx_amb):
     im = axes[4].imshow(np.abs(pred_ctx - target), cmap="viridis")
     axes[4].set_title("|model+ctx − measured| (°C)", fontsize=10)
     fig.colorbar(im, ax=axes[4], fraction=0.046)
-    fig.suptitle(f"zero-shot (no fine-tuning) — {name}, K=8 placeholder sites", fontsize=12)
+    fig.suptitle(f"zero-shot (no fine-tuning) — {name}, K={len(s_vals)} annotated sites", fontsize=12)
     fig.tight_layout()
     fig.savefig(QC / f"zeroshot_{name}.png", dpi=110)
     plt.close(fig)
@@ -144,19 +161,21 @@ def main():
     targets = []
     t4, a4 = field_from_canonical(PROC / "canonical_case04_half_load.npz")
     t1, a1 = field_from_canonical(PROC / "canonical_case01_idle.npz")
-    targets.append(("s1_half_load", t4, a4, t1, a1))
+    targets.append(("s1_half_load", t4, a4, t1, a1, "s1",
+                    PROC / "trust_case04_half_load.npz"))
     t6, a6 = field_from_canonical(PROC / "canonical_case06_full_load_20min.npz")
     t7, a7 = field_from_tail(PROC / "case07_cooldown_full_20min.npz")
-    targets.append(("s2_full_load", t6, a6, t7, a7))
+    targets.append(("s2_full_load", t6, a6, t7, a7, "s2",
+                    PROC / "trust_case06_full_load_20min.npz"))
 
-    print(f"\n{'target':14s} {'method':10s} {'RMSE_all':>9s} {'RMSE_hot':>9s} "
+    print(f"\n{'target':14s} {'method':10s} {'RMSE_all':>9s} {'RMSE_trust':>10s} "
           f"{'maxT_err':>9s} {'hotspot_px':>11s}")
-    for name, target, amb, ctxf, ctxa in targets:
-        res = evaluate_target(name, model, target, amb, ctxf, ctxa)
+    for name, target, amb, ctxf, ctxa, session, trust in targets:
+        res = evaluate_target(name, model, target, amb, ctxf, ctxa, session, trust)
         for tag, m in res.items():
-            print(f"{name:14s} {tag:10s} {m['rmse_all']:9.2f} {m['rmse_hot']:9.2f} "
+            print(f"{name:14s} {tag:10s} {m['rmse_all']:9.2f} {m['rmse_trust']:10.2f} "
                   f"{m['max_T_err']:+9.2f} {m['hotspot_dist_px']:11.1f}")
-    print(f"\nfigures: reports/qc/zeroshot_*.png   (provisional: placeholder sites, no trust mask)")
+    print(f"\nfigures: reports/qc/zeroshot_*.png   (annotated sites + trust-masked metric)")
 
 
 if __name__ == "__main__":
