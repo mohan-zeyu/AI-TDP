@@ -110,6 +110,29 @@ def main():
                             artifact_frac=float(artifact.mean()))
         print(f"trust_{cid}: trusted {trusted.mean() * 100:.1f}% of pixels")
 
+    # validation patches (held out from all supervision/sensing), per session
+    from tdp.data.patches import make_validation_patches
+
+    patches_out = {}
+    for sess, cid, ref in [("s1", "case04_half_load", None),
+                           ("s2", "case06_full_load_20min", None)]:
+        d = can[cid]
+        field = d["mean_T"].astype(np.float64)
+        trusted = np.load(PROC / f"trust_{cid}.npz")["trusted"]
+        h, w = field.shape
+        spx = np.array([[s["v"] * h, s["u"] * w] for s in sites_out
+                        if sess in s["trusted_sessions"]])
+        patches = make_validation_patches(field, trusted, spx)
+        patches_out[sess] = {
+            "reference_case": cid, "shape": [h, w], "radius_px": 1,
+            "patches_rc": [[r, c] for r, c in patches],
+        }
+        print(f"validation patches {sess}: {len(patches)} spots "
+              f"(T {min(field[r, c] for r, c in patches):.1f}"
+              f"..{max(field[r, c] for r, c in patches):.1f} °C)")
+    (CFG / "validation_patches.json").write_text(
+        json.dumps(patches_out, indent=2), encoding="utf-8")
+
     # shield A/B: same fractional top band, bare (s1) vs taped (s2), full load
     band = (0.0, 0.13)
     def band_stats(field, amb):

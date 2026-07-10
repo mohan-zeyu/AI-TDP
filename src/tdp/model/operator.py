@@ -122,14 +122,16 @@ class ThermalOperatorV2(nn.Module):
 
     def forward(self, sensors, queries, cond=None, sensor_mask=None,
                 context=None, context_state=None, context_mask=None,
-                cond_mask=None):
+                cond_mask=None, board_tokens=None):
         """sensors (B,K,3) · queries (B,Q,2) · cond (B,4) or None.
 
         v2.5 extras (all optional; None ≡ v2 behaviour):
           context (B,M,3) reference-frame points (x, y, θ_ref/s_ctx),
           context_state (B,M) long 0/1 = which reference frame,
           context_mask (B,M) bool True=pad,
-          cond_mask (B,) bool True=drop the condition token for that sample.
+          cond_mask (B,) bool True=drop the condition token for that sample,
+          board_tokens (B,N,d_model) learned per-board memory (M7 Tier-1
+            adaptation) — enters like encoded context (context type embedding).
         Masks: True = padded/ignored (nn.MultiheadAttention convention).
         """
         B = sensors.shape[0]
@@ -146,6 +148,10 @@ class ThermalOperatorV2(nn.Module):
             tokens.append(ce)
             masks.append(context_mask if context_mask is not None
                          else torch.zeros(B, context.shape[1], dtype=torch.bool, device=dev))
+
+        if board_tokens is not None and board_tokens.shape[1] > 0:
+            tokens.append(board_tokens + self.type_embed.weight[1])
+            masks.append(torch.zeros(B, board_tokens.shape[1], dtype=torch.bool, device=dev))
 
         if cond is not None:
             ct = self.cond_embed(cond).unsqueeze(1) + self.type_embed.weight[3]
