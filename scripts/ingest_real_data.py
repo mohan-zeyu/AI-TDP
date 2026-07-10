@@ -45,6 +45,13 @@ CASES = [
     ("case03_满载冷却过程", "case03_cooldown_full", "cooling after full load", "cooling"),
     ("case04_半负载", "case04_half_load", "half CPU load", "steady"),
     ("case05_半负载冷却过程", "case05_cooldown_half", "cooling after half load", "cooling"),
+    # session 2 (2026-07-09) — camera re-staged, expect per-case window/review
+    ("case06_满载20分钟", "case06_full_load_20min", "full CPU load, 20 min (s2)", "steady"),
+    ("case07_满载冷却20分钟", "case07_cooldown_full_20min", "cooling after full load, 20 min (s2)", "cooling"),
+    ("case08_不插电（铝箔背景）/光铝箔开灯", "case08_foil_smooth_light", "unplugged, smooth foil bg, light on", "calib"),
+    ("case08_不插电（铝箔背景）/光铝箔不开灯", "case08_foil_smooth_dark", "unplugged, smooth foil bg, light off", "calib"),
+    ("case08_不插电（铝箔背景）/糙铝箔开灯", "case08_foil_rough_light", "unplugged, rough foil bg, light on", "calib"),
+    ("case08_不插电（铝箔背景）/糙铝箔不开灯", "case08_foil_rough_dark", "unplugged, rough foil bg, light off", "calib"),
 ]
 
 
@@ -162,10 +169,12 @@ def main() -> int:
         det_idx = 0 if kind == "cooling" else len(frames) - 1
         det_frame = frames[det_idx].temps
         rot90, needs_review, zncc = 0, False, None
+        case_size = size
 
         if cid in overrides:
             ov = overrides[cid]
             row0, col0, rot90 = int(ov["row0"]), int(ov["col0"]), int(ov.get("rot90", 0))
+            case_size = tuple(ov.get("size", size))
             method = "override"
         elif kind == "calib":
             reg = register_crop(det_frame, ref_patch, size)
@@ -192,7 +201,7 @@ def main() -> int:
                       f"from reference ({ref_r},{ref_c}) — flagged for review")
 
         raw_stack = np.stack([np.rot90(f.temps, rot90) for f in frames])
-        cropped = apply_crop(raw_stack, row0, col0, size).astype(np.float32)
+        cropped = apply_crop(raw_stack, row0, col0, case_size).astype(np.float32)
         t_amb = np.array([estimate_ambient(f.temps, border_px) for f in frames], np.float32)
         epochs = np.array([f.timestamp.timestamp() for f in frames], np.int64)
         t_rel = (epochs - epochs[0]).astype(np.float64)
@@ -217,7 +226,7 @@ def main() -> int:
         jpeg = frames[det_idx].path.parent.parent / "photo" / f"{det_stem}.jpeg"
         if not jpeg.exists():
             jpeg = jpeg.with_suffix(".jpg")
-        qc_figure(cid, det_frame, rot90, row0, col0, size, cropped, t_rel,
+        qc_figure(cid, det_frame, rot90, row0, col0, case_size, cropped, t_rel,
                   jpeg if jpeg.exists() else None, QC_DIR / f"{cid}_crop.png")
 
         manifest["cases"].append({
@@ -229,7 +238,7 @@ def main() -> int:
             "parse_errors": errors,
             "encodings": sorted({f.encoding for f in frames}),
             "crop": {"row0": row0, "col0": col0, "rot90": rot90, "method": method,
-                     "zncc": zncc, "needs_review": needs_review},
+                     "size": list(case_size), "zncc": zncc, "needs_review": needs_review},
             "time": {"start": frames[0].timestamp.isoformat(),
                      "end": frames[-1].timestamp.isoformat(),
                      "duration_s": float(t_rel[-1]),

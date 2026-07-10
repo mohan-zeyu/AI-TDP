@@ -5,6 +5,11 @@ reference:
   case: case02_full_load   # hot reference: window position + registration template
   frame: -1                # last frame (hottest, sharpest board contrast)
 max_deviation_px: 3     # warn if a case's detected window strays further from the reference
-# Per-case manual overrides (win over detection/registration), e.g.:
-#   case00_unpowered: {row0: 31, col0: 52, rot90: 2}
-overrides: {}
+# Per-case manual overrides (win over detection/registration). Optional "size"
+# overrides the global window (session-2 camera sits ~13% closer: PCB = 178x118
+# px at ~0.478 mm/px, measured from case06 excess bbox, aspect 0.663 ≈ PCB's
+# 56/85). rot90=2: session-2 board is mounted 180° relative to session 1 —
+# rotating restores session-1 orientation for annotation/comparison.
+overrides:
+  case06_full_load_20min: {rot90: 2, row0: 52, col0: 33, size: [178, 118]}
+  case07_cooldown_full_20min: {rot90: 2, row0: 52, col0: 33, size: [178, 118]}

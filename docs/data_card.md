@@ -27,7 +27,18 @@ tape type · SoC temperature logs + clock sync · workload remainder (confirm ha
 = 2× `yes`; OS version/bitness; power supply) · airflow & mounting orientation ·
 camera model/accuracy · competition deadline.
 
-## Session 2 — planned (weekend re-measurement)
+## Session 2 — 2026-07-09 (delivered early: extended runs + foil study)
+
+| Item | Value |
+|---|---|
+| Cases | case06 full load 20 min (240 f) · case07 cooling 20 min (240 f) · case08 unplugged foil-background: smooth/rough × light on/off (16 f total) |
+| Camera | re-staged ~13% closer: PCB = **178×118 px** (~0.478 mm/px); board mounted 180° vs session 1 (crops rotated back, window (52,33) via override) |
+| Integrity | 496/496 frames parse + metadata self-check |
+| Full-load plateau | **real** this time: peak 82.0 °C canonical, n_eff = 17 (vs 2 in session 1) |
+| Cooling physics | decays to **idle-powered equilibrium θ∞ ≈ 13 °C excess** (board stays on after `killall yes`); offset fits R² ≈ 0.999; window-dependent τ ⇒ two thermal modes (fast ~140 s die/package, slow ~250 s PCB tail). Session-1 zero-offset τ values (411/565 s) were model-mismatch artifacts — superseded. |
+| case08 purpose | reflected-temperature / emissivity radiometry (foil scenes); crops meaningless by design — analysis reads raw CSVs |
+
+## Session 3 — planned (weekend re-measurement)
 
 Protocol in `docs/m3_data_requirements.md` Part B — **A/B design**: config A bare
 (cold isothermal + full load + cooling; demonstrates the bare-SoC-lid emissivity

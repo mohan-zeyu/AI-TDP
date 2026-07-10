@@ -12,8 +12,45 @@ from __future__ import annotations
 import numpy as np
 
 
+def fit_cooling_offset(t_s: np.ndarray, excess: np.ndarray) -> dict:
+    """Offset-exponential fit  excess(t) = θ_inf + A·e^(−t/τ).
+
+    The board stays *powered* after the load stops (`killall yes`), so the decay
+    asymptote is the idle-powered equilibrium θ_inf, NOT ambient. A zero-offset
+    log-linear fit is model-mismatched and inflates τ (this reconciled the
+    session-1 τ discrepancy once case07's full 25-min curve exposed θ_inf).
+    """
+    from scipy.optimize import curve_fit
+
+    def f(t, theta_inf, amp, tau):
+        return theta_inf + amp * np.exp(-t / tau)
+
+    p0 = [max(float(excess[-1]), 0.1),
+          max(float(excess[0] - excess[-1]), 0.5),
+          max(float(t_s[-1]) / 3.0, 60.0)]
+    popt, pcov = curve_fit(f, t_s, excess, p0=p0,
+                           bounds=([0.0, 0.0, 10.0], [60.0, 120.0, 5000.0]),
+                           maxfev=20000)
+    pred = f(t_s, *popt)
+    ss_res = float(((excess - pred) ** 2).sum())
+    ss_tot = float(((excess - excess.mean()) ** 2).sum())
+    perr = np.sqrt(np.clip(np.diag(pcov), 0, None))
+    return {
+        "theta_inf_c": float(popt[0]),
+        "amp_c": float(popt[1]),
+        "tau_s": float(popt[2]),
+        "tau_std_s": float(perr[2]),
+        "r2": 1.0 - ss_res / ss_tot if ss_tot > 0 else float("nan"),
+        "n_used": int(len(t_s)),
+        "t_span_s": float(t_s[-1] - t_s[0]),
+    }
+
+
 def fit_cooling(t_s: np.ndarray, excess: np.ndarray, min_excess_c: float = 1.5) -> dict:
-    """Log-linear fit of excess(t) = θ0·exp(−t/τ) on frames with excess > min_excess_c."""
+    """Log-linear fit of excess(t) = θ0·exp(−t/τ) on frames with excess > min_excess_c.
+
+    Model-mismatched when the asymptote is nonzero (kept as a diagnostic;
+    prefer fit_cooling_offset)."""
     sel = excess > min_excess_c
     if sel.sum() < 5:
         raise ValueError("too few frames above min_excess for a cooling fit")

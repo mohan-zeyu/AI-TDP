@@ -24,7 +24,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from tdp.data.cooling import fit_cooling, fit_h_hat_pde, h_hat_from_decay, radial_decay_fit
+from tdp.data.cooling import (
+    fit_cooling,
+    fit_cooling_offset,
+    fit_h_hat_pde,
+    h_hat_from_decay,
+    radial_decay_fit,
+)
 from tdp.data.radiometry import tape_bias_c
 from tdp.data.steady import canonical_steady, detect_steady
 from tdp.io.manifest import read_manifest, write_manifest
@@ -33,8 +39,10 @@ ROOT = Path(__file__).resolve().parents[1]
 PROC = ROOT / "data" / "processed" / "real"
 QC = ROOT / "reports" / "qc"
 
-STEADY_CASES = ["case01_idle", "case02_full_load", "case04_half_load"]
-COOLING_CASES = ["case03_cooldown_full", "case05_cooldown_half"]
+STEADY_CASES = ["case01_idle", "case02_full_load", "case04_half_load",
+                "case06_full_load_20min"]
+COOLING_CASES = ["case03_cooldown_full", "case05_cooldown_half",
+                 "case07_cooldown_full_20min"]
 NORM_LENGTH_PX = 157.0  # board long side in px (crop rows); nondimensional length unit
 
 
@@ -109,39 +117,44 @@ def main() -> int:
     plt.close(fig_c)
 
     # ---- cooling time constants --------------------------------------------------
-    fig, ax = plt.subplots(figsize=(6.5, 4.4))
+    fig, ax = plt.subplots(figsize=(7.2, 4.6))
     out["cooling"] = {}
     for cid in COOLING_CASES:
         d = data[cid]
         t = d["t_rel_s"]
         excess = d["frame_mean"] - d["t_amb"]
-        fit = fit_cooling(t, excess)
+        fit = fit_cooling_offset(t, excess)
+        fit["loglin_tau_s"] = fit_cooling(t, excess)["tau_s"]  # zero-offset diagnostic
         out["cooling"][cid] = fit
-        ax.semilogy(t / 60, excess, ".", ms=4, label=f"{cid} data")
-        tt = np.linspace(0, t[-1], 100)
-        ax.semilogy(tt / 60, fit["theta0_c"] * np.exp(-tt / fit["tau_s"]), "-",
-                    label=f"fit τ={fit['tau_s']:.0f}s R²={fit['r2']:.3f}")
+        ax.plot(t / 60, excess, ".", ms=3, label=f"{cid}")
+        tt = np.linspace(0, t[-1], 200)
+        ax.plot(tt / 60, fit["theta_inf_c"] + fit["amp_c"] * np.exp(-tt / fit["tau_s"]),
+                "-", lw=1.2,
+                label=f"τ={fit['tau_s']:.0f}±{fit['tau_std_s']:.0f}s, "
+                      f"θ∞={fit['theta_inf_c']:.1f}°C, R²={fit['r2']:.3f}")
     ax.set_xlabel("t (min)")
     ax.set_ylabel("mean excess (°C)")
-    ax.set_title("Cool-down: board mean excess temperature")
+    ax.set_title("Cool-down → idle-powered equilibrium: θ(t) = θ∞ + A·e^(−t/τ)")
     ax.legend(fontsize=8)
-    ax.grid(alpha=0.3, which="both")
+    ax.grid(alpha=0.3)
     fig.tight_layout()
     fig.savefig(QC / "physics_cooling.png", dpi=110)
     plt.close(fig)
 
     taus = [out["cooling"][c]["tau_s"] for c in COOLING_CASES]
-    out["cooling"]["tau_agreement"] = abs(taus[0] - taus[1]) / np.mean(taus)
+    out["cooling"]["tau_spread"] = float((max(taus) - min(taus)) / np.mean(taus))
 
     # ---- spatial decay length → ĥ_meas -------------------------------------------
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
+    decay_cases = [("case02_full_load", 157.0), ("case04_half_load", 157.0),
+                   ("case06_full_load_20min", 178.0)]  # norm = long side in px per session
+    fig, axes = plt.subplots(1, len(decay_cases), figsize=(5.5 * len(decay_cases), 4.2))
     out["decay"] = {}
-    for j, cid in enumerate(["case02_full_load", "case04_half_load"]):
+    for j, (cid, norm_px) in enumerate(decay_cases):
         can = np.load(PROC / f"canonical_{cid}.npz")
         theta = can["mean_T"].astype(np.float64) - float(can["t_amb"])
-        pde_fit = fit_h_hat_pde(theta, NORM_LENGTH_PX)
+        pde_fit = fit_h_hat_pde(theta, norm_px)
         fit = radial_decay_fit(theta)
-        h_hat = h_hat_from_decay(fit["L_d_px"], NORM_LENGTH_PX)
+        h_hat = h_hat_from_decay(fit["L_d_px"], norm_px)
         out["decay"][cid] = {
             "h_hat_pde": pde_fit["h_hat"],       # primary estimate (source-free ∇̃²θ = ĥθ)
             "pde_fit_r2": pde_fit["r2"],
@@ -190,13 +203,20 @@ def main() -> int:
         "but the board appears ~5-8% larger (tripod moved closer) → per-pixel bias map "
         "deferred until a re-measurement with untouched tripod (wishlist item 1).",
         "case02 never fully plateaus (residual drift ~0.2 °C/min at 12.5 min); its canonical "
-        "field is a quasi-steady tail average (n_eff=2) — treat as test-only, as planned.",
+        "field is a quasi-steady tail average (n_eff=2). case06 (session 2, 20 min) reaches a "
+        "true plateau with n_eff=17 and peak 82.0 °C.",
         "case04 per-pixel std (median 0.38 °C) includes slow drift across the 6-12.5 min "
         "steady window, so it is a conservative (upper) repeatability estimate; case01/02 "
         "n_eff=2 stds (~0.07 °C) reflect shot-to-shot noise only.",
-        "τ(full)=411s < τ(half)=565s (31% apart): consistent with temperature-dependent "
-        "natural convection (h grows with ΔT) plus fits spanning only ~0.4-0.6 τ — report "
-        "as physics, and prefer τ from longer cool-downs in a re-measurement.",
+        "Cooling decays to the IDLE-POWERED equilibrium (θ∞ ≈ 12-13 °C excess), not ambient "
+        "— the board stays on after `killall yes`. The offset model θ∞+A·e^(-t/τ) fits at "
+        "R²≈0.999 (zero-offset log fits were model-mismatched: 411/565s were artifacts). "
+        "Window-dependent single-exp τ (134-149 s over ~4 min vs 251 s over 25 min) reveals "
+        "a two-mode system: fast die/package mode ~140 s, slow PCB tail ~250 s.",
+        "Session 2 (2026-07-09): camera ~13% closer (PCB 178x118 px, ~0.478 mm/px), board "
+        "mounted 180° vs session 1 (crops rotated back via rot90=2 overrides). case08 foil "
+        "sub-cases are radiometric reference scenes — their NPZ crops are meaningless by "
+        "design (flagged); reflected-temperature analysis reads the raw CSVs.",
         "Connector shields (USB/HDMI/Ethernet) read near-ambient in all load cases while "
         "surrounded by 50-60 °C board — textbook emissivity failure, key story figure.",
     ]
@@ -211,9 +231,10 @@ def main() -> int:
               f"noise σ median {s['noise_std_median_c']:.3f}°C p95 {s['noise_std_p95_c']:.3f}°C")
     for cid in COOLING_CASES:
         f = out["cooling"][cid]
-        print(f"{cid}: τ={f['tau_s']:.0f}s θ0={f['theta0_c']:.1f}°C R²={f['r2']:.4f} "
-              f"(n={f['n_used']}, span {f['t_span_s']:.0f}s)")
-    print(f"τ agreement: {out['cooling']['tau_agreement'] * 100:.1f}%")
+        print(f"{cid}: τ={f['tau_s']:.0f}±{f['tau_std_s']:.0f}s θ∞={f['theta_inf_c']:.1f}°C "
+              f"A={f['amp_c']:.1f}°C R²={f['r2']:.4f} span={f['t_span_s']:.0f}s "
+              f"(zero-offset diagnostic τ={f['loglin_tau_s']:.0f}s)")
+    print(f"τ spread across cooling cases: {out['cooling']['tau_spread'] * 100:.1f}%")
     for cid, dd in out["decay"].items():
         print(f"{cid}: ĥ_meas(PDE)={dd['h_hat_pde']:.2f} (R²={dd['pde_fit_r2']:.3f}, "
               f"n={dd['pde_fit_n_px']}px) | radial diagnostic L_d={dd['radial_L_d_px']:.0f}px "
