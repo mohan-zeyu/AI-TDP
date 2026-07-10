@@ -10,7 +10,8 @@
 | What did each measurement exist for; what could be cut? | `measurement_targets.md` *(historical — fulfilled)* |
 | The measurement/handover checklist we executed | `m3_data_requirements.md` *(historical — fulfilled)* |
 
-Figures (`assets/`): `pipeline_overview.svg` (whole project, one glance) ·
-`story_chain_zh.svg` (叙事链) · `operator_v25.svg` (architecture, exact shapes) ·
-`training_scheme_v25.svg` (one training item). Result figures live in
-`reports/qc/`.
+Figures (`assets/`): `training_mechanism.svg` (**the mechanism**: pre-training
+data flow through the layers → weights frozen → board-card fine-tuning on real
+Pi data, gradients only into 1k params) · `story_chain_zh.svg` (叙事链) ·
+`operator_v25.svg` (architecture, exact shapes) · `training_scheme_v25.svg`
+(one training item). Result figures live in `reports/qc/`.

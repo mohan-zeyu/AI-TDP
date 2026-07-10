@@ -5,7 +5,7 @@ field from a few trusted point sensors; each new board is adopted with a 5.8 KB
 "board card" (1,026 parameters, one minute) — toward on-device thermal
 self-monitoring.**
 
-![Pipeline overview](docs/assets/pipeline_overview.svg)
+![How it trains: pre-training on simulation, board-card fine-tuning on the real Pi](docs/assets/training_mechanism.svg)
 
 ## Why
 
