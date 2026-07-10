@@ -1,5 +1,10 @@
 # M3 Data Handover & Re-measurement Protocol
 
+> **STATUS: FULFILLED (2026-07-09/10).** Session 2 delivered case06/07 (20-min
+> load/cooling) and case08 (foil radiometry); tape-layout photo
+> (`assets/Taged_Chip.png`) and SoC log (`tlog1.csv`) handed over and processed.
+> Kept for reference; remaining data-card facts tracked in `data_card.md`.
+
 What to provide / measure, in what form, and why. Items are marked **[required]**,
 **[recommended]**, or **[optional]**. Part D lists things explicitly NOT needed —
 do not spend time on them.

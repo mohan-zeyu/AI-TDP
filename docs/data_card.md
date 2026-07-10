@@ -22,10 +22,10 @@
 12.5 min (canonical field = quasi-steady tail, n_eff = 2); cooling windows cover
 only ~half a time constant; steady frames are near-duplicates (n_eff 2–11).
 
-**Pending records (A1–A6, see `docs/m3_data_requirements.md`):** tape positions &
-tape type · SoC temperature logs + clock sync · workload remainder (confirm half
-= 2× `yes`; OS version/bitness; power supply) · airflow & mounting orientation ·
-camera model/accuracy · competition deadline.
+**Delivered since:** tape-layout photo ✓ · SoC log ✓ · workload commands ✓.
+**Still pending (nice-to-have for the report):** tape type/layers · confirm half
+load = 2× `yes` · OS version/bitness · power supply model · airflow & mounting
+orientation · camera model/accuracy spec · competition deadline & format.
 
 ## Session 2 — 2026-07-09 (delivered early: extended runs + foil study)
 
@@ -37,8 +37,18 @@ camera model/accuracy · competition deadline.
 | Full-load plateau | **real** this time: peak 82.0 °C canonical, n_eff = 17 (vs 2 in session 1) |
 | Cooling physics | decays to **idle-powered equilibrium θ∞ ≈ 13 °C excess** (board stays on after `killall yes`); offset fits R² ≈ 0.999; window-dependent τ ⇒ two thermal modes (fast ~140 s die/package, slow ~250 s PCB tail). Session-1 zero-offset τ values (411/565 s) were model-mismatch artifacts — superseded. |
 | case08 purpose | reflected-temperature / emissivity radiometry (foil scenes); crops meaningless by design — analysis reads raw CSVs |
+| SoC diode log (`tlog1.csv`, 2 s) | Pi clock was 2 h 25 min off (no RTC) — aligned by curve shape vs case06 (corr 0.943). **Diode max 82.7 °C; 36% of plateau ≥ 80 °C (soft throttle active); junction − IR-on-tape = −1.0 °C** |
+| Tape layout (`assets/Taged_Chip.png`) | large sheet over SoC/RAM/PMIC + **all connector shields wrapped** → 8 annotated sites, trust masks, shield A/B (+14 °C vs session 1's bare shields) |
 
-## Session 3 — planned (weekend re-measurement)
+## Session 3 — optional remaining wishlist
+
+Sessions 1–2 covered the essentials (user considers the A/B done: case06/07 =
+taped arm, case08 = bare/foil radiometry arm). Still valuable if ever convenient:
+a *loaded* bare-board run at the same tripod (pixel-aligned emissivity-error
+field), a cold isothermal set aligned with a load session, contact-probe spot
+checks, USB-C power readings, a second board (the transfer headline figure).
+
+Original protocol (historical):
 
 Protocol in `docs/m3_data_requirements.md` Part B — **A/B design**: config A bare
 (cold isothermal + full load + cooling; demonstrates the bare-SoC-lid emissivity

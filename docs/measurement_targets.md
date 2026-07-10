@@ -1,5 +1,8 @@
 # Measurement Targets — what each item is actually for
 
+> **STATUS: HISTORICAL (fulfilled 2026-07-10).** The targets below were met by
+> sessions 1–2; results live in `story_zh.md` §3–4 and `data_card.md`.
+
 Companion to `docs/m3_data_requirements.md` (the *how*). This file is the *why*:
 each measurement exists because one specific claim, figure, or pipeline stage
 consumes it. If a row's target doesn't matter to you, cut that row — nothing

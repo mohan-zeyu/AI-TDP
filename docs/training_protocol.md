@@ -107,9 +107,11 @@ is a controlled twin, not a historical notebook.
 
 - FDM O(h²) manufactured-solution test green (`tests/test_fdm.py`); ✅
 - smoke run (`--small`, ~3 min) K-curve monotone; ✅ (0.32→0.25 for K=4→16)
-- full run: val RMSE(θ′) stable, K-curve monotone, amplitude-invariance exact,
-  **and a clear cross-state context gain at K ≤ 4** (v2.5 acceptance; if absent,
-  fallbacks: longer training, larger n_context, context curriculum).
+- full run: **all met (2026-07-10)** — val RMSE(θ′) 0.077 ctx / 0.143 no-ctx;
+  K-curves monotone; **cross-state context gain 42–52% at every K** incl. K=2/3;
+  λ=0 twin trained (ablation: tied in-distribution; PDE better 3/4 real
+  zero-shot settings, hotspot 4 px vs 34 px no-ctx; within test noise after
+  Tier-1 — see `decisions.md` 2026-07-11).
 - Local smoke: `uv run scripts/run_pretrain.py --small` (MPS double-backward
   verified working). Full: same command on Colab GPU (`pip install -e .` first),
   then the twin.
@@ -169,14 +171,17 @@ log ĥ (weak prior to the measured bound) and log γ; 300–800 steps, early sto
 on validation-patch RMSE; λ_pde ∈ {0, 1e-5, 1e-4, 1e-3, 1e-2} selected on the
 patches only (λ = 0 means physics is allowed to lose).
 
-### 4.4 Acceptance (M7)
+### 4.4 Acceptance (M7) — **met (2026-07-11)**
 
-- validation-patch RMSE ≥ 20% better than zero-shot (Tier 1), and the peak
-  (max-T) underestimate substantially closed;
-- fitted ĥ consistent with the measured bound (≲3);
-- Tier-3 ablation reported: if Tier 1 captures most of its gain, the headline
-  is "per-board calibration = 10³ parameters in a minute"; if not, Tier 2/3
-  becomes the path and we say so.
+- validation-patch RMSE 2.27 → 1.57 °C (**−30.9%**, gate ≥ 20%); peak error
+  halved to −3.1 °C after peak-aware supervision (σ clipped at 0.35 °C in the
+  weights + hottest/site pixels forced into every query batch — the first run
+  without this traded the peak away: recorded lesson);
+- fitted ĥ = 0.99, consistent with the measured bound ≲ 3 (weakly identified at
+  λ=0 — phrase as "consistent with", not "confirms");
+- untouched tests: case02 3.08 °C vs RBF 5.39; case06 cross-session 3.18 vs
+  5.38; λ grid: **λ=0 won** — the PDE prior pays via pretraining, not as a
+  Tier-1 regularizer (kept as the honest ablation).
 
 ## 5. Testing & reporting (M8)
 

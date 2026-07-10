@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 500" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif">
+  <defs>
+    <marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1150" height="500" fill="#ffffff"/>
+  <text x="575" y="32" text-anchor="middle" font-size="19" font-weight="bold" fill="#0f172a">故事链:每一环都有文献或本项目实测数据支撑</text>
+
+  <!-- Row 1 -->
+  <rect x="20" y="64" width="350" height="140" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="1.8"/>
+  <text x="195" y="90" text-anchor="middle" font-size="14" font-weight="bold" fill="#7f1d1d">① 背景:算力功耗密度爆炸</text>
+  <text x="195" y="114" text-anchor="middle" font-size="12" fill="#7f1d1d">GPU:400 W → 700 W → 1000+ W</text>
+  <text x="195" y="133" text-anchor="middle" font-size="12" fill="#7f1d1d">机柜迈向 250–900 kW(2026–27)</text>
+  <text x="195" y="152" text-anchor="middle" font-size="12" fill="#7f1d1d">热点 ⇒ 降频(性能)+ 失效(可靠性)</text>
+  <text x="195" y="176" text-anchor="middle" font-size="12" font-weight="bold" fill="#7f1d1d">动态热管理需要:稠密且准确的温度场</text>
+
+  <rect x="400" y="64" width="350" height="140" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="575" y="90" text-anchor="middle" font-size="14" font-weight="bold" fill="#7c2d12">② 测量鸿沟(本项目实测)</text>
+  <text x="575" y="114" text-anchor="middle" font-size="12" fill="#7c2d12">红外:密而失真 —— 同一接插件同负载,</text>
+  <text x="575" y="133" text-anchor="middle" font-size="12" fill="#7c2d12">裸测 31 °C vs 贴带 45 °C(差 +14 °C!)</text>
+  <text x="575" y="152" text-anchor="middle" font-size="12" fill="#7c2d12">且封闭机箱内无光学通路</text>
+  <text x="575" y="176" text-anchor="middle" font-size="12" font-weight="bold" fill="#7c2d12">触点/片上:准而稀疏(每板仅数点)</text>
+
+  <rect x="780" y="64" width="350" height="140" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.8"/>
+  <text x="955" y="90" text-anchor="middle" font-size="14" font-weight="bold" fill="#713f12">③ 问题定式(TFR-HSS 问题类)</text>
+  <text x="955" y="114" text-anchor="middle" font-size="12" fill="#713f12">由 K 个稀疏可信测点重构整板温度场</text>
+  <text x="955" y="133" text-anchor="middle" font-size="12" fill="#713f12">不适定逆问题 ⇒ 需要物理先验正则化</text>
+  <text x="955" y="152" text-anchor="middle" font-size="12" fill="#713f12">公开基准 TFRD(Sci China Inf Sci 2022)</text>
+  <text x="955" y="176" text-anchor="middle" font-size="12" font-weight="bold" fill="#713f12">"电子设备实时健康监测"即其原始动机</text>
+
+  <!-- Row 2 -->
+  <rect x="20" y="290" width="350" height="150" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="195" y="316" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e3a8a">④ 方法:通用先验 + 按板校准</text>
+  <text x="195" y="340" text-anchor="middle" font-size="12" fill="#1e3a8a">物理生成数据(FDM)预训练注意力算子</text>
+  <text x="195" y="359" text-anchor="middle" font-size="12" fill="#1e3a8a">上下文帧 = "板卡指纹"(免梯度适配)</text>
+  <text x="195" y="378" text-anchor="middle" font-size="12" fill="#1e3a8a">无量纲化契约 ⇒ 幅值外推由构造保证</text>
+  <text x="195" y="402" text-anchor="middle" font-size="12" font-weight="bold" fill="#1e3a8a">板卡卡片:仅 1026 参数 / 5.8 KB / 1 分钟</text>
+
+  <rect x="400" y="290" width="350" height="150" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="575" y="316" text-anchor="middle" font-size="14" font-weight="bold" fill="#14532d">⑤ 实测证据(全部可复现)</text>
+  <text x="575" y="340" text-anchor="middle" font-size="12" fill="#14532d">未见的满载工况:3.1 °C(插值基线 5.4 °C)</text>
+  <text x="575" y="359" text-anchor="middle" font-size="12" fill="#14532d">跨会话迁移(换机位/换朝向):3.2 °C</text>
+  <text x="575" y="378" text-anchor="middle" font-size="12" fill="#14532d">片上二极管 vs 红外贴带面温:一致 ±1.0 °C</text>
+  <text x="575" y="402" text-anchor="middle" font-size="12" font-weight="bold" fill="#14532d">λ=0 孪生消融:物理主要经数据分布起效</text>
+
+  <rect x="780" y="290" width="350" height="150" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.8"/>
+  <text x="955" y="316" text-anchor="middle" font-size="14" font-weight="bold" fill="#4c1d95">⑥ 愿景:片上热自监测</text>
+  <text x="955" y="340" text-anchor="middle" font-size="12" fill="#4c1d95">模型小到可跑在被监测设备自身上</text>
+  <text x="955" y="359" text-anchor="middle" font-size="12" fill="#4c1d95">设备用自己的稀疏传感器实时重构全场</text>
+  <text x="955" y="378" text-anchor="middle" font-size="12" fill="#4c1d95">= "软件定义热像仪" / 轻量数字孪生</text>
+  <text x="955" y="402" text-anchor="middle" font-size="12" font-weight="bold" fill="#4c1d95">新板卡 = 一帧标定 + 一张几 KB 的卡片</text>
+
+  <!-- arrows -->
+  <line x1="370" y1="134" x2="400" y2="134" stroke="#334155" stroke-width="2" marker-end="url(#sa)"/>
+  <line x1="750" y1="134" x2="780" y2="134" stroke="#334155" stroke-width="2" marker-end="url(#sa)"/>
+  <path d="M 955 204 L 955 245 L 195 245 L 195 290" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#sa)"/>
+  <line x1="370" y1="365" x2="400" y2="365" stroke="#334155" stroke-width="2" marker-end="url(#sa)"/>
+  <line x1="750" y1="365" x2="780" y2="365" stroke="#334155" stroke-width="2" marker-end="url(#sa)"/>
+
+  <text x="22" y="478" font-size="12" fill="#475569">纪律:满载工况从不参与训练(严酷工况外推测试)· 验证补丁从不被监督 · λ 网格含 0(允许物理"输")· 所有数字一条命令复现</text>
+</svg>

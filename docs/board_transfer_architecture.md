@@ -1,10 +1,13 @@
 # Board-Transfer Architecture (v2.5) — in-context board conditioning
 
-> **Status: implemented 2026-07-10** (multi-state boards with shared LU, typed
-> context tokens, context/cond dropout, fair-K dual validation; 20 tests green).
-> Smoke evidence: val RMSE 0.296 (ctx) vs 0.349 (no-ctx) at 12 epochs; the
-> cross-state matched-K gain is the M5 full-run acceptance metric. The InfoNCE
-> auxiliary and Q̂-decoder head remain optional follow-ups.
+> **Status: implemented & validated.** Full pretrain (2026-07-10): val RMSE
+> 0.077 ctx vs 0.143 no-ctx; **cross-state matched-K context gain 42–52% at
+> every K** — the fingerprint mechanism works. Real board: zero-shot 3.3–3.5 °C
+> trusted RMSE (RBF 4.0–5.7); Tier-1 board card (1026 params, 5.8 KB) → 3.08 °C
+> on the untouched full load and **3.18 °C cross-session**. λ=0 twin ablation:
+> physics acts via the data distribution + contract; the residual term buys
+> low-information robustness (hotspot 4 vs 34 px no-ctx). InfoNCE auxiliary and
+> Q̂-decoder head remain optional follow-ups.
 
 Problem: in v2, "which board this is" lives only in fine-tuned weights. Every new
 board ⇒ its own gradient run, own checkpoint, forgetting risk, no explicit board
