@@ -183,6 +183,15 @@ patches only (λ = 0 means physics is allowed to lose).
   5.38; λ grid: **λ=0 won** — the PDE prior pays via pretraining, not as a
   Tier-1 regularizer (kept as the honest ablation).
 
+### 4.5 Few-shot calibration (measured, `scripts/run_fewshot.py`)
+
+The card is frame-count-insensitive: 1 frame per condition ≈ all frames
+(case02 3.12 vs 3.06 °C; 3 seeds). **A single half-load frame alone gives
+2.88/3.00 °C** — the 1k-parameter card saturates from one informative snapshot,
+so per-board calibration = one loaded IR frame + one minute. A single *idle*
+frame still works but costs ~0.4 °C (low-amplitude supervision): calibrate
+under load if possible.
+
 ## 5. Testing & reporting (M8)
 
 - **Spatial:** validation-patch RMSE/MAE vs RBF (thin-plate), GP (RBF+White,

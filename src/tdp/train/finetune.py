@@ -94,6 +94,26 @@ def load_case(proc: Path, cid: str) -> RealCase:
                     trust, (h, w), w / h)
 
 
+def load_case_subset(proc: Path, cid: str, n_frames: int | None,
+                     seed: int = 0) -> tuple[RealCase, int]:
+    """Few-shot variant: build the training view from only n_frames of the
+    steady frames (evaluation elsewhere still uses the full-data canonical).
+    n_frames=None or >= available -> all steady frames."""
+    can = np.load(proc / f"canonical_{cid}.npz")
+    d = np.load(proc / f"{cid}.npz")
+    idx = np.asarray(can["frame_indices"])
+    if n_frames is not None and n_frames < len(idx):
+        rng = np.random.default_rng(seed)
+        idx = np.sort(rng.choice(idx, n_frames, replace=False))
+    T = d["T"][idx].astype(np.float64)
+    field = T.mean(0)
+    std = T.std(0, ddof=1) if len(idx) > 1 else np.zeros_like(field)
+    amb = float(np.mean(d["t_amb"][idx]))
+    trust = np.load(proc / f"trust_{cid}.npz")["trusted"]
+    h, w = field.shape
+    return RealCase(cid, field, std, amb, trust, (h, w), w / h), int(len(idx))
+
+
 def sites_px_for(sites: list[dict], session: str, shape: tuple[int, int]) -> np.ndarray:
     h, w = shape
     return np.array([[s["v"] * h, s["u"] * w] for s in sites
