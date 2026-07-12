@@ -49,6 +49,10 @@ def main():
                     default=[f"test/test_{i}.txt" for i in range(6)])
     ap.add_argument("--limit", type=int, default=None,
                     help="cap samples per test list (quick runs)")
+    ap.add_argument("--train-limit", type=int, default=None,
+                    help="train on only N samples (seeded subsample; the "
+                         "validation split stays fixed for comparability)")
+    ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--device", default="auto")
     args = ap.parse_args()
 
@@ -64,9 +68,17 @@ def main():
         tag = f"tfrd_{case}_zeroshot"
     else:
         files = read_list(args.data_root, args.train_list)
-        n_val = max(len(files) // 20, 10)
-        train_files, val_files = files[:-n_val], files[-n_val:]
-        print(f"TFRD {case}: {len(train_files)} train / {len(val_files)} val samples")
+        n_val = min(max(len(files) // 20, 10), 200)
+        pool, val_files = files[:-n_val], files[-n_val:]  # val fixed across sizes
+        if args.train_limit is not None and args.train_limit < len(pool):
+            rng = np.random.default_rng(args.seed)
+            idx = rng.choice(len(pool), args.train_limit, replace=False)
+            train_files = [pool[i] for i in sorted(idx)]
+        else:
+            train_files = pool
+        print(f"TFRD {case}: {len(train_files)} train / {len(val_files)} val samples"
+              + (f" (train-limit {args.train_limit}, seed {args.seed})"
+                 if args.train_limit else ""))
 
         if args.warm_start:
             model, _ = load_checkpoint(args.ckpt)
@@ -80,7 +92,8 @@ def main():
         opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
         best = float("inf")
-        tag = f"tfrd_{case}" + ("_warm" if args.warm_start else "")
+        tag = (f"tfrd_{case}" + ("_warm" if args.warm_start else "")
+               + (f"_n{args.train_limit}" if args.train_limit else ""))
         ckpt_path = ROOT / "models/v2" / f"{tag}.pt"
         for ep in range(args.epochs):
             model.train()
