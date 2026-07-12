@@ -69,6 +69,7 @@ def main():
     else:
         files = read_list(args.data_root, args.train_list)
         n_val = min(max(len(files) // 20, 10), 200)
+        n_val = min(n_val, max(len(files) - 1, 1))  # never empty the train pool
         pool, val_files = files[:-n_val], files[-n_val:]  # val fixed across sizes
         if args.train_limit is not None and args.train_limit < len(pool):
             rng = np.random.default_rng(args.seed)
