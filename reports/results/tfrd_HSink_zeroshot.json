@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-07-12T08:49:30+00:00",
+  "case": "HSink",
+  "mode": "zeroshot",
+  "warm_start": false,
+  "tests": {
+    "test/test_0.txt": {
+      "n_samples": 15,
+      "mae_K": 6.176906546615712,
+      "max_ae_K": 41.971561686197916,
+      "hotspot_mae_K": 6.082180294670073
+    }
+  }
+}

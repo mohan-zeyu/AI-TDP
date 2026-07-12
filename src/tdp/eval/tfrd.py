@@ -25,10 +25,15 @@ TOL = 1e-14
 
 
 def read_list(root: Path, list_path: str) -> list[Path]:
-    lines = (root / list_path).read_text().split()
+    """TFRD lists hold bare names resolved against a sibling directory:
+    test/test_N.txt -> test/test_N/<name>, train/train_val.txt -> train/train/<name>."""
+    lp = root / list_path
+    lines = lp.read_text().split()
+    list_dir, stem = lp.parent, lp.stem
     files = []
     for ln in lines:
-        for cand in (root / ln, root / "train" / ln, root / "test" / ln):
+        for cand in (list_dir / stem / ln, list_dir / "train" / ln,
+                     list_dir / ln, root / ln):
             for p in (cand, cand.with_suffix(".mat")):
                 if p.is_file():
                     files.append(p)
@@ -37,7 +42,7 @@ def read_list(root: Path, list_path: str) -> list[Path]:
                 continue
             break
     if not files:
-        raise FileNotFoundError(f"no samples resolved from {root / list_path}")
+        raise FileNotFoundError(f"no samples resolved from {lp}")
     return files
 
 
