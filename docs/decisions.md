@@ -73,6 +73,15 @@ bounds — the residual term adds a robustness margin where information is
 scarce, not a headline accuracy gain. Stated plainly; the twin table is the
 evidence. → M8 ablation column, `models/boards/pi4b_s1_nopde_report.json`.
 
+**2026-07-12 — Shipped checkpoint stays pretrain_v2 (PDE), adjudicated with 5 seeds.**
+User asked why not the λ=0 twin ("better in our tests"). Single-seed test edge
+was seed noise: 5 card refits per backbone give case02 3.010±0.157 (main) vs
+2.999±0.048 (twin) — tie; case06 3.150±0.144 vs 3.189±0.152 — ordering FLIPPED
+vs the single-seed run; selection metric (patches) favors main 1.650±0.079 vs
+1.703±0.038. Plus main's clear robustness edge in sensor-starved regimes
+(hotspot 4 vs 34 px, no-ctx). Choosing by test-case numbers would be test-set
+selection — the discipline exists precisely for this moment.
+
 **2026-07-11 — Fine-tuning = board-token adaptation, not full-weight training.**
 User challenged full fine-tuning; with v2.5 the board is an explicit input, so
 adaptation moves to representation space: freeze the 1.06M backbone, learn ~8
