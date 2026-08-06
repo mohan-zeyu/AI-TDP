@@ -16,7 +16,13 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from tdp.model.normalization import BOARD_ASPECT
-from tdp.sim.fdm import bilinear, factorize_steady, grid_coords, solve_with
+from tdp.sim.fdm import (
+    bilinear,
+    factorize_steady,
+    factorize_steady_variable_k,
+    grid_coords,
+    solve_with,
+)
 
 
 @dataclass
@@ -32,10 +38,30 @@ class ScenarioConfig:
     sigma_ratio: tuple = (0.4, 1.0)    # minor/major
     rect_half: tuple = (0.03, 0.15)    # half-extents of rectangle sources
     rect_edge: float = 0.012           # tanh edge width (smooth for autograd PDE)
+    source_rotated_prob: float = 0.35
     rel_amp: tuple = (0.2, 1.0)        # per-source amplitude draw, per state
     base_amp: float = 200.0
     margin: float = 0.12               # source centers stay this far (fractional) from edges
     states_per_board: int = 3
+    # Disabled by default so the v2 generator remains reproducible.  A
+    # heterogeneous continuation config turns these regular inclusions on.
+    heterogeneous_prob: float = 0.0
+    n_material_regions: tuple = (1, 4)
+    material_k_logrange: tuple = (0.15, 6.0)
+    material_h_logrange: tuple = (0.3, 3.0)
+    material_rc_logrange: tuple = (0.001, 0.08)
+    material_zero_rc_prob: float = 0.35
+    material_half: tuple = (0.04, 0.18)
+    material_source_aligned_prob: float = 0.65
+    material_source_offset_prob: float = 0.45
+    material_source_offset_max: float = 0.08
+    material_rotated_prob: float = 0.15
+    material_ellipse_prob: float = 0.20
+    independent_boundary_prob: float = 0.0
+    boundary_side_factor: tuple = (0.25, 4.0)
+    local_contact_prob: float = 0.0
+    local_contact_fraction: tuple = (0.08, 0.35)
+    local_contact_factor: tuple = (2.0, 20.0)
     source_off_prob: float = 0.15      # per state, per source (≥1 stays on)
 
 
@@ -57,11 +83,52 @@ class Source:
             u = ca * (x - self.cx) + sa * (y - self.cy)
             v = -sa * (x - self.cx) + ca * (y - self.cy)
             return np.exp(-0.5 * ((u / self.p1) ** 2 + (v / self.p2) ** 2))
-        sx = 0.5 * (np.tanh((x - (self.cx - self.p1)) / self.edge)
-                    - np.tanh((x - (self.cx + self.p1)) / self.edge))
-        sy = 0.5 * (np.tanh((y - (self.cy - self.p2)) / self.edge)
-                    - np.tanh((y - (self.cy + self.p2)) / self.edge))
+        ca, sa = np.cos(self.angle), np.sin(self.angle)
+        u = ca * (x - self.cx) + sa * (y - self.cy)
+        v = -sa * (x - self.cx) + ca * (y - self.cy)
+        sx = 0.5 * (np.tanh((u + self.p1) / self.edge)
+                    - np.tanh((u - self.p1) / self.edge))
+        sy = 0.5 * (np.tanh((v + self.p2) / self.edge)
+                    - np.tanh((v - self.p2) / self.edge))
         return sx * sy
+
+
+@dataclass
+class MaterialRegion:
+    """Piecewise-constant rectangular in-plane conductivity inclusion."""
+
+    cx: float
+    cy: float
+    half_x: float
+    half_y: float
+    relative_k: float
+    relative_h: float = 1.0
+    relative_rc: float = 0.0
+    angle: float = 0.0
+    shape: str = "rect"
+
+    def contains(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        ca, sa = np.cos(self.angle), np.sin(self.angle)
+        u = ca * (x - self.cx) + sa * (y - self.cy)
+        v = -sa * (x - self.cx) + ca * (y - self.cy)
+        if self.shape == "ellipse":
+            return (u / self.half_x) ** 2 + (v / self.half_y) ** 2 <= 1.0
+        return (np.abs(u) <= self.half_x) & (np.abs(v) <= self.half_y)
+
+
+@dataclass
+class BoundarySegment:
+    """Override of the edge heat-transfer coefficient on one side.
+
+    ``side`` is 0/1/2/3 = left/right/top/bottom; start/end are fractional
+    positions along that side.  Segments describe clips, cables, or local
+    contact with a support without tying the universal model to a board type.
+    """
+
+    side: int
+    start: float
+    end: float
+    gamma: float
 
 
 @dataclass
@@ -71,6 +138,95 @@ class BoardLayout:
     robin: bool
     gamma: float | None
     sources: list[Source] = field(default_factory=list)
+    materials: list[MaterialRegion] = field(default_factory=list)
+    side_gamma: tuple[float, float, float, float] | None = None
+    boundary_segments: list[BoundarySegment] = field(default_factory=list)
+
+    def conductivity_at(self, xy: np.ndarray) -> np.ndarray:
+        """Relative conductivity; later regions override earlier overlaps."""
+        x, y = xy[..., 0], xy[..., 1]
+        out = np.ones_like(x, dtype=np.float64)
+        for material in self.materials:
+            out[material.contains(x, y)] = material.relative_k
+        return out
+
+    def sink_at(self, xy: np.ndarray) -> np.ndarray:
+        """Relative vertical heat-loss coefficient H(x,y)/H_background."""
+        x, y = xy[..., 0], xy[..., 1]
+        out = np.ones_like(x, dtype=np.float64)
+        for material in self.materials:
+            out[material.contains(x, y)] = material.relative_h
+        return out
+
+    def material_descriptors(self) -> np.ndarray:
+        """(R,10): geometry, K/H/contact resistance, and shape code."""
+        return np.asarray([
+            [m.cx, m.cy, m.half_x, m.half_y, np.sin(m.angle), np.cos(m.angle),
+             np.log(m.relative_k), np.log(m.relative_h), np.log1p(m.relative_rc),
+             float(m.shape == "ellipse")]
+            for m in self.materials
+        ], dtype=np.float32).reshape(-1, 10)
+
+    def contact_resistance_faces(self, X: np.ndarray, Y: np.ndarray):
+        """Dimensionless interface resistance on x/y grid faces."""
+        rx = np.zeros((X.shape[0], X.shape[1] - 1), dtype=np.float64)
+        ry = np.zeros((X.shape[0] - 1, X.shape[1]), dtype=np.float64)
+        for material in self.materials:
+            if material.relative_rc <= 0:
+                continue
+            inside = material.contains(X, Y)
+            rx = np.maximum(rx, (inside[:, :-1] != inside[:, 1:]) * material.relative_rc)
+            ry = np.maximum(ry, (inside[:-1, :] != inside[1:, :]) * material.relative_rc)
+        return rx, ry
+
+    def boundary_gamma_arrays(self, ny: int, nx: int) -> dict[str, np.ndarray] | float:
+        if not self.robin:
+            return 0.0
+        base = self.side_gamma or (self.gamma,) * 4
+        arrays = {
+            "left": np.full(ny, base[0], dtype=np.float64),
+            "right": np.full(ny, base[1], dtype=np.float64),
+            "top": np.full(nx, base[2], dtype=np.float64),
+            "bottom": np.full(nx, base[3], dtype=np.float64),
+        }
+        names = ("left", "right", "top", "bottom")
+        for segment in self.boundary_segments:
+            values = arrays[names[segment.side]]
+            lo = max(0, int(np.floor(segment.start * (len(values) - 1))))
+            hi = min(len(values), int(np.ceil(segment.end * (len(values) - 1))) + 1)
+            values[lo:hi] = segment.gamma
+        return arrays
+
+    def boundary_gamma_at(self, xy: np.ndarray, side: np.ndarray) -> np.ndarray:
+        base = self.side_gamma or ((self.gamma or 0.0),) * 4
+        out = np.asarray(base, dtype=np.float64)[side]
+        along = np.where(side < 2, xy[..., 1], xy[..., 0] / self.aspect)
+        for segment in self.boundary_segments:
+            hit = ((side == segment.side) & (along >= segment.start)
+                   & (along <= segment.end))
+            out[hit] = segment.gamma
+        return out
+
+    def boundary_descriptors(self) -> np.ndarray:
+        """Straight segment descriptors usable for rectangles or polygons."""
+        robin = float(self.robin)
+        base = self.side_gamma or ((self.gamma or 1.0),) * 4
+
+        def descriptor(side: int, start: float, end: float, gamma: float):
+            if side == 0:
+                p0, p1, normal = (0.0, start), (0.0, end), (-1.0, 0.0)
+            elif side == 1:
+                p0, p1, normal = (self.aspect, start), (self.aspect, end), (1.0, 0.0)
+            elif side == 2:
+                p0, p1, normal = (start * self.aspect, 0.0), (end * self.aspect, 0.0), (0.0, -1.0)
+            else:
+                p0, p1, normal = (start * self.aspect, 1.0), (end * self.aspect, 1.0), (0.0, 1.0)
+            return [*p0, *p1, *normal, np.log(max(gamma, 1e-8)), robin]
+
+        rows = [descriptor(side, 0.0, 1.0, base[side]) for side in range(4)]
+        rows.extend(descriptor(s.side, s.start, s.end, s.gamma)
+                    for s in self.boundary_segments)
+        return np.asarray(rows, dtype=np.float32).reshape(-1, 8)
 
 
 @dataclass
@@ -105,6 +261,33 @@ class BoardState:
             out += a * s.q_unit(x, y)
         return out
 
+    def conductivity_at(self, xy: np.ndarray) -> np.ndarray:
+        return self.layout.conductivity_at(xy)
+
+    def sink_at(self, xy: np.ndarray) -> np.ndarray:
+        return self.layout.sink_at(xy)
+
+    def material_descriptors(self) -> np.ndarray:
+        return self.layout.material_descriptors()
+
+    def source_descriptors(self) -> np.ndarray:
+        """(S,8) source geometry and per-state relative source strength."""
+        if len(self.layout.sources) == 0:
+            return np.zeros((0, 8), dtype=np.float32)
+        scale = max(float(np.max(self.amps)), 1e-8)
+        relative = np.clip(self.amps / scale, 1e-4, None)
+        return np.asarray([
+            [s.cx, s.cy, s.p1, s.p2, np.sin(s.angle), np.cos(s.angle),
+             np.log(a), float(s.kind == "gauss")]
+            for s, a in zip(self.layout.sources, relative)
+        ], dtype=np.float32).reshape(-1, 8)
+
+    def boundary_descriptors(self) -> np.ndarray:
+        return self.layout.boundary_descriptors()
+
+    def boundary_gamma_at(self, xy: np.ndarray, side: np.ndarray) -> np.ndarray:
+        return self.layout.boundary_gamma_at(xy, side)
+
 
 @dataclass
 class Board:
@@ -119,6 +302,23 @@ def _random_layout(rng: np.random.Generator, scfg: ScenarioConfig,
     h_hat = float(np.exp(rng.uniform(*np.log(scfg.h_hat_logrange))))
     robin = bool(rng.random() < scfg.robin_prob)
     gamma = float(np.exp(rng.uniform(*np.log(scfg.gamma_logrange)))) if robin else None
+    side_gamma = None
+    boundary_segments = []
+    if robin:
+        if rng.random() < scfg.independent_boundary_prob:
+            factors = np.exp(rng.uniform(*np.log(scfg.boundary_side_factor), size=4))
+            side_gamma = tuple(float(gamma * factor) for factor in factors)
+        else:
+            side_gamma = (gamma,) * 4
+        if rng.random() < scfg.local_contact_prob:
+            for _ in range(int(rng.integers(1, 4))):
+                side = int(rng.integers(4))
+                length = float(rng.uniform(*scfg.local_contact_fraction))
+                start = float(rng.uniform(0.0, 1.0 - length))
+                factor = float(np.exp(rng.uniform(*np.log(scfg.local_contact_factor))))
+                boundary_segments.append(BoundarySegment(
+                    side, start, start + length, side_gamma[side] * factor
+                ))
     m = scfg.margin
     sources = []
     for _ in range(rng.integers(scfg.n_sources[0], scfg.n_sources[1] + 1)):
@@ -129,11 +329,70 @@ def _random_layout(rng: np.random.Generator, scfg: ScenarioConfig,
             sources.append(Source("gauss", cx, cy, s1, s1 * float(rng.uniform(*scfg.sigma_ratio)),
                                   angle=float(rng.uniform(0, np.pi))))
         else:
+            angle = (float(rng.uniform(0, np.pi))
+                     if rng.random() < scfg.source_rotated_prob else 0.0)
             sources.append(Source("rect", cx, cy,
                                   float(rng.uniform(*scfg.rect_half)),
                                   float(rng.uniform(*scfg.rect_half)),
+                                  angle=angle,
                                   edge=scfg.rect_edge))
-    return BoardLayout(aspect=aspect, h_hat=h_hat, robin=robin, gamma=gamma, sources=sources)
+    materials = []
+    if scfg.heterogeneous_prob > 0 and rng.random() < scfg.heterogeneous_prob:
+        n_materials = int(rng.integers(
+            scfg.n_material_regions[0], scfg.n_material_regions[1] + 1
+        ))
+        for _ in range(n_materials):
+            aligned = bool(sources) and rng.random() < scfg.material_source_aligned_prob
+            if aligned:
+                source = sources[int(rng.integers(len(sources)))]
+                cx, cy = source.cx, source.cy
+                half_x = float(np.clip(
+                    source.p1 * rng.uniform(0.85, 1.45),
+                    scfg.material_half[0],
+                    scfg.material_half[1],
+                ))
+                half_y = float(np.clip(
+                    source.p2 * rng.uniform(0.85, 1.45),
+                    scfg.material_half[0],
+                    scfg.material_half[1],
+                ))
+                angle = source.angle if source.kind == "gauss" else 0.0
+                if rng.random() < scfg.material_source_offset_prob:
+                    offset = scfg.material_source_offset_max
+                    cx += float(rng.uniform(-offset, offset))
+                    cy += float(rng.uniform(-offset, offset))
+                    cx = float(np.clip(cx, half_x, aspect - half_x))
+                    cy = float(np.clip(cy, half_y, 1.0 - half_y))
+            else:
+                half_x = float(rng.uniform(*scfg.material_half))
+                half_y = float(rng.uniform(*scfg.material_half))
+                cx = float(rng.uniform(half_x, aspect - half_x))
+                cy = float(rng.uniform(half_y, 1.0 - half_y))
+                angle = 0.0
+            if rng.random() < scfg.material_rotated_prob:
+                angle = float(rng.uniform(0.0, np.pi))
+            materials.append(MaterialRegion(
+                cx=cx,
+                cy=cy,
+                half_x=half_x,
+                half_y=half_y,
+                relative_k=float(np.exp(rng.uniform(*np.log(scfg.material_k_logrange)))),
+                relative_h=float(np.exp(rng.uniform(*np.log(scfg.material_h_logrange)))),
+                relative_rc=(0.0 if rng.random() < scfg.material_zero_rc_prob else
+                             float(np.exp(rng.uniform(*np.log(scfg.material_rc_logrange))))),
+                angle=angle,
+                shape="ellipse" if rng.random() < scfg.material_ellipse_prob else "rect",
+            ))
+    return BoardLayout(
+        aspect=aspect,
+        h_hat=h_hat,
+        robin=robin,
+        gamma=gamma,
+        sources=sources,
+        materials=materials,
+        side_gamma=side_gamma,
+        boundary_segments=boundary_segments,
+    )
 
 
 def _random_amps(rng: np.random.Generator, n: int, scfg: ScenarioConfig) -> np.ndarray:
@@ -152,9 +411,32 @@ def random_board(rng: np.random.Generator, scfg: ScenarioConfig,
     nx = max(int(round(scfg.ny * layout.aspect)), 12)
     X, Y = grid_coords(scfg.ny, nx, layout.aspect)
     unit_grids = np.stack([s.q_unit(X, Y) for s in layout.sources])
-    lu, boundary = factorize_steady(scfg.ny, nx, layout.aspect, layout.h_hat,
-                                    bc="robin" if layout.robin else "dirichlet",
-                                    gamma=layout.gamma if layout.robin else 0.0)
+    nonuniform_boundary = bool(
+        layout.boundary_segments
+        or (layout.side_gamma is not None and len(set(layout.side_gamma)) > 1)
+    )
+    if layout.materials or nonuniform_boundary:
+        xy_grid = np.stack([X, Y], axis=-1)
+        conductivity = layout.conductivity_at(xy_grid)
+        sink = layout.h_hat * layout.sink_at(xy_grid)
+        contact_resistance = layout.contact_resistance_faces(X, Y)
+        lu, boundary = factorize_steady_variable_k(
+            conductivity,
+            layout.aspect,
+            sink,
+            bc="robin" if layout.robin else "dirichlet",
+            gamma=layout.boundary_gamma_arrays(scfg.ny, nx),
+            contact_resistance=contact_resistance,
+        )
+    else:
+        lu, boundary = factorize_steady(
+            scfg.ny,
+            nx,
+            layout.aspect,
+            layout.h_hat,
+            bc="robin" if layout.robin else "dirichlet",
+            gamma=layout.gamma if layout.robin else 0.0,
+        )
     states = []
     for _ in range(n_states):
         amps = _random_amps(rng, len(layout.sources), scfg)

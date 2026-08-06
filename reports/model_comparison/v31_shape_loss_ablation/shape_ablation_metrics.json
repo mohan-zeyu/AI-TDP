@@ -1,0 +1,164 @@
+{
+  "A_baseline": {
+    "hotspot_shape": {
+      "0.9": {
+        "iou": 0.7928057553956834,
+        "truth": {
+          "height_px": 26,
+          "width_px": 26,
+          "area_px": 640
+        },
+        "prediction": {
+          "height_px": 26,
+          "width_px": 27,
+          "area_px": 606
+        }
+      },
+      "0.95": {
+        "iou": 0.679920477137177,
+        "truth": {
+          "height_px": 23,
+          "width_px": 24,
+          "area_px": 486
+        },
+        "prediction": {
+          "height_px": 21,
+          "width_px": 21,
+          "area_px": 359
+        }
+      }
+    },
+    "soc_roi": {
+      "mae_c": 0.8440009951591492,
+      "rmse_c": 1.1953705549240112,
+      "max_ae_c": 4.17340087890625,
+      "peak_error_c": 0.35327577590942383,
+      "hotspot_error_px": 2.0073233497861427,
+      "gradient_mae_c_per_px": 0.32581719756126404
+    },
+    "trusted_region": {
+      "mae_c": 1.5423942804336548,
+      "rmse_c": 2.0967516899108887,
+      "max_ae_c": 12.972095489501953,
+      "peak_error_c": 0.35327577590942383,
+      "hotspot_error_px": 2.0073233497861427,
+      "gradient_mae_c_per_px": 0.5403043031692505
+    },
+    "full_crop": {
+      "mae_c": 1.9508280754089355,
+      "rmse_c": 2.6420648097991943,
+      "max_ae_c": 12.972095489501953,
+      "peak_error_c": 0.35327577590942383,
+      "hotspot_error_px": 2.0073233497861427,
+      "gradient_mae_c_per_px": 0.5859498381614685
+    }
+  },
+  "B_soc_only": {
+    "hotspot_shape": {
+      "0.9": {
+        "iou": 0.7314285714285714,
+        "truth": {
+          "height_px": 26,
+          "width_px": 26,
+          "area_px": 640
+        },
+        "prediction": {
+          "height_px": 30,
+          "width_px": 33,
+          "area_px": 875
+        }
+      },
+      "0.95": {
+        "iou": 0.7781402936378466,
+        "truth": {
+          "height_px": 23,
+          "width_px": 24,
+          "area_px": 486
+        },
+        "prediction": {
+          "height_px": 26,
+          "width_px": 26,
+          "area_px": 604
+        }
+      }
+    },
+    "soc_roi": {
+      "mae_c": 0.45700985193252563,
+      "rmse_c": 0.5643439292907715,
+      "max_ae_c": 2.3238067626953125,
+      "peak_error_c": 0.8579805692036947,
+      "hotspot_error_px": 3.8278291344543143,
+      "gradient_mae_c_per_px": 0.26495519280433655
+    },
+    "trusted_region": {
+      "mae_c": 1.7666621208190918,
+      "rmse_c": 2.3906898498535156,
+      "max_ae_c": 12.265811920166016,
+      "peak_error_c": 0.8579805692036947,
+      "hotspot_error_px": 3.8278291344543143,
+      "gradient_mae_c_per_px": 0.5827226042747498
+    },
+    "full_crop": {
+      "mae_c": 2.142133951187134,
+      "rmse_c": 2.904212713241577,
+      "max_ae_c": 12.426887512207031,
+      "peak_error_c": 0.8579805692036947,
+      "hotspot_error_px": 3.8278291344543143,
+      "gradient_mae_c_per_px": 0.6108919978141785
+    }
+  },
+  "C_full_shape": {
+    "hotspot_shape": {
+      "0.9": {
+        "iou": 0.7907845579078456,
+        "truth": {
+          "height_px": 26,
+          "width_px": 26,
+          "area_px": 640
+        },
+        "prediction": {
+          "height_px": 29,
+          "width_px": 31,
+          "area_px": 798
+        }
+      },
+      "0.95": {
+        "iou": 0.8059964726631393,
+        "truth": {
+          "height_px": 23,
+          "width_px": 24,
+          "area_px": 486
+        },
+        "prediction": {
+          "height_px": 24,
+          "width_px": 25,
+          "area_px": 538
+        }
+      }
+    },
+    "soc_roi": {
+      "mae_c": 0.4792495369911194,
+      "rmse_c": 0.5882300138473511,
+      "max_ae_c": 2.1376190185546875,
+      "peak_error_c": 0.23720773061116537,
+      "hotspot_error_px": 3.030232796513386,
+      "gradient_mae_c_per_px": 0.26995304226875305
+    },
+    "trusted_region": {
+      "mae_c": 1.6871167421340942,
+      "rmse_c": 2.3363256454467773,
+      "max_ae_c": 11.737678527832031,
+      "peak_error_c": 0.23720773061116537,
+      "hotspot_error_px": 3.030232796513386,
+      "gradient_mae_c_per_px": 0.586407482624054
+    },
+    "full_crop": {
+      "mae_c": 2.034790515899658,
+      "rmse_c": 2.812272548675537,
+      "max_ae_c": 12.536796569824219,
+      "peak_error_c": 0.23720773061116537,
+      "hotspot_error_px": 3.030232796513386,
+      "gradient_mae_c_per_px": 0.6118711829185486
+    }
+  }
+}

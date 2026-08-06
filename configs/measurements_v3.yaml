@@ -1,0 +1,231 @@
+version: 1
+raw_dir_env: TDP_RAW_DIR
+description: >-
+  Log-aligned windows for the 2026-07-26/27 measurements.  The raw case
+  folders contain idle/load/cooldown phases in one continuous recording, so
+  state labels come from the independent CPU-load logs rather than folder
+  names or the final frame.
+
+profiles:
+  pi4b_bare:
+    board: raspberry_pi_4b
+    surface: bare
+    dense_supervision: false
+    exclusion_reason: Bare low-emissivity packages and shields are not dense temperature ground truth.
+    crop: {rot90: 2, row0: 61, col0: 48, height: 176, width: 116}
+    rotate_rect:
+      physical_size_mm: [89, 56]
+      output_size: [178, 112]
+      # Rotation only: keep all upper connectors; no perspective correction.
+      center_rc: [141.5, 99.0]
+      size_hw: [166.0, 112.0]
+      angle_deg: 3.0
+    trust_rect: {u0: 0.02, v0: 0.22, u1: 0.98, v1: 0.98}
+
+  opi5pro_bare:
+    board: orange_pi_5_pro
+    surface: bare
+    dense_supervision: false
+    exclusion_reason: Bare packages and connector shields require emissivity masks before dense supervision.
+    crop: {rot90: 2, row0: 50, col0: 43, height: 190, width: 120}
+    rotate_rect:
+      physical_size_mm: [89, 56]
+      output_size: [178, 112]
+      center_rc: [148.0, 90.0]
+      size_hw: [170.0, 102.0]
+      angle_deg: 0.0
+    trust_rect: {u0: 0.02, v0: 0.27, u1: 0.98, v1: 0.98}
+
+  opi5pro_tape:
+    board: orange_pi_5_pro
+    surface: black_tape
+    dense_supervision: true
+    crop: {rot90: 2, row0: 29, col0: 43, height: 191, width: 120}
+    rotate_rect:
+      physical_size_mm: [89, 56]
+      output_size: [178, 112]
+      # Default (case15) rotation-only box.  Rows [48, 214) move the top and
+      # bottom inward by 3 px.  The width is reduced proportionally so the
+      # source rectangle continues to match the physical 89:56 PCB ratio.
+      center_rc: [131.0, 99.0]
+      size_hw: [166.0, 104.5]
+      angle_deg: 0.0
+    trust_rect: {u0: 0.02, v0: 0.27, u1: 0.98, v1: 0.98}
+
+  pi4b_paint:
+    board: raspberry_pi_4b
+    surface: black_matte_paint
+    dense_supervision: true
+    crop: {rot90: 2, row0: 61, col0: 50, height: 166, width: 110}
+    trust_rect: {u0: 0.02, v0: 0.22, u1: 0.98, v1: 0.98}
+
+cases:
+  case09:
+    case_number: 9
+    profile: pi4b_bare
+    log_file: cpu_load_50.csv
+    windows:
+      idle: {start: "2026-07-26 15:49:00", end: "2026-07-26 15:52:00", role: train}
+      half: {start: "2026-07-26 16:07:47", end: "2026-07-26 16:12:47", role: train}
+
+  case10:
+    case_number: 10
+    profile: pi4b_bare
+    log_file: cpu_load_100.csv
+    windows:
+      full: {start: "2026-07-26 17:12:26", end: "2026-07-26 17:17:26", role: test}
+
+  case11:
+    case_number: 11
+    profile: opi5pro_bare
+    windows:
+      idle: {start: "2026-07-27 15:03:45", end: "2026-07-27 15:08:45", role: train}
+
+  case12:
+    case_number: 12
+    profile: opi5pro_bare
+    log_file: opi5pro_half_load.csv
+    windows:
+      half: {start: "2026-07-27 15:29:46", end: "2026-07-27 15:34:46", role: train}
+
+  case13:
+    case_number: 13
+    profile: opi5pro_bare
+    log_file: opi5pro_full_load.csv
+    windows:
+      full: {start: "2026-07-27 16:22:27", end: "2026-07-27 16:27:27", role: test}
+
+  case14:
+    case_number: 14
+    profile: opi5pro_tape
+    log_file: opi5pro_tape_half_load.csv
+    # The median temperature fields register case14 8 px left of case15
+    # (gradient-map ZNCC 0.969).  Keep its accepted vertical extent and apply
+    # only that measured horizontal translation.
+    rotate_rect:
+      physical_size_mm: [89, 56]
+      output_size: [178, 112]
+      center_rc: [131.0, 91.0]
+      size_hw: [172.0, 108.0]
+      angle_deg: 0.0
+    note: >-
+      The second logged half-load interval (19:35:50--19:40:50) has only one
+      synchronized IR frame, so it is excluded rather than presented as an
+      independent validation sequence.
+    windows:
+      half_a: {start: "2026-07-27 19:00:19", end: "2026-07-27 19:05:19", role: train}
+
+  case15:
+    case_number: 15
+    profile: opi5pro_tape
+    log_file: opi5pro_tape_full_load_new.csv
+    windows:
+      heat_early: {start: "2026-07-27 20:09:37", end: "2026-07-27 20:10:33", role: train}
+      heat_late: {start: "2026-07-27 20:10:34", end: "2026-07-27 20:11:33", role: train}
+      full: {start: "2026-07-27 20:15:28", end: "2026-07-27 20:18:28", role: test_quasi_steady}
+      cooldown: {start: "2026-07-27 20:18:34", end: "2026-07-27 20:28:33", role: test_dynamic}
+
+  case16:
+    case_number: 16
+    profile: pi4b_paint
+    log_file: rpi4b_painted_half_load.csv
+    note: >-
+      Frames before the logged half-load interval are a hot carry-over/cooling
+      state (IR peak about 68 C), not an idle equilibrium, and are excluded.
+    windows:
+      half: {start: "2026-07-27 22:05:23", end: "2026-07-27 22:10:23", role: train}
+
+  case17:
+    case_number: 17
+    profile: pi4b_paint
+    log_file: rpi4b_painted_full_load.csv
+    windows:
+      full: {start: "2026-07-27 22:39:50", end: "2026-07-27 22:44:50", role: test}
+
+protocols:
+  pi4b_paint:
+    profile: pi4b_paint
+    train_states: [case16_half]
+    test_state: case17_full
+    sensor_layout: pi4b_s3
+    sensor_ids: [soc, ram, corner_cold]
+
+  opi5pro_tape:
+    profile: opi5pro_tape
+    train_states: [case14_half_a]
+    test_state: case15_full
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, warm_secondary, corner_cold]
+
+  opi5pro_tape_heat_to_cool:
+    profile: opi5pro_tape
+    train_states: [case14_half_a, case15_heat_early, case15_heat_late, case15_full]
+    test_state: case15_cooldown
+    test_semantics: dynamic_cooldown_stress_test
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, warm_secondary, corner_cold]
+
+  opi5pro_tape_heat_to_cool_power_k3:
+    profile: opi5pro_tape
+    train_states: [case14_half_a, case15_heat_early, case15_heat_late, case15_full]
+    test_state: case15_cooldown
+    test_semantics: dynamic_cooldown_stress_test
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, power_input, corner_cold]
+    evaluation_regions:
+      power_input: {u: 0.6964, v: 0.2978, radius_px: 10}
+      cpu: {u: 0.4924, v: 0.6105, radius_px: 22}
+
+  opi5pro_tape_heat_to_cool_lower_component_k3:
+    profile: opi5pro_tape
+    train_states: [case14_half_a, case15_heat_early, case15_heat_late, case15_full]
+    test_state: case15_cooldown
+    test_semantics: dynamic_cooldown_stress_test
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, warm_secondary, lower_left_component]
+    evaluation_regions:
+      power_input: {u: 0.6964, v: 0.2978, radius_px: 10}
+      cpu: {u: 0.4924, v: 0.6105, radius_px: 22}
+
+  opi5pro_tape_heat_to_cool_edge_sink_k3:
+    profile: opi5pro_tape
+    train_states: [case14_half_a, case15_heat_early, case15_heat_late, case15_full]
+    test_state: case15_cooldown
+    test_semantics: dynamic_cooldown_stress_test
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, warm_secondary, left_edge_sink]
+    evaluation_regions:
+      power_input: {u: 0.6964, v: 0.2978, radius_px: 10}
+      cpu: {u: 0.4924, v: 0.6105, radius_px: 22}
+
+  # Full-load ramp frames are the only real adaptation data.  The later
+  # quasi-steady full-load block is the primary checkpoint-selection set,
+  # while the independent half-load session is a lower-weight cross-condition
+  # validation set.  Cooldown remains untouched until final evaluation.
+  opi5pro_tape_full_train_half_crossval_power_lower_k3:
+    profile: opi5pro_tape
+    train_states: [case15_heat_early, case15_heat_late]
+    primary_validation_states: [case15_full]
+    cross_validation_states: [case14_half_a]
+    validation_weights: {primary: 0.7, cross: 0.3}
+    test_state: case15_cooldown
+    test_semantics: dynamic_cooldown_stress_test
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, power_input, lower_left_component]
+    evaluation_regions:
+      power_input: {u: 0.6964, v: 0.2978, radius_px: 10}
+      cpu: {u: 0.4924, v: 0.6105, radius_px: 22}
+
+  opi5pro_tape_full_train_half_crossval_power_edge_k3:
+    profile: opi5pro_tape
+    train_states: [case15_heat_early, case15_heat_late]
+    primary_validation_states: [case15_full]
+    cross_validation_states: [case14_half_a]
+    validation_weights: {primary: 0.7, cross: 0.3}
+    test_state: case15_cooldown
+    test_semantics: dynamic_cooldown_stress_test
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, power_input, left_edge_sink]
+    evaluation_regions:
+      power_input: {u: 0.6964, v: 0.2978, radius_px: 10}
+      cpu: {u: 0.4924, v: 0.6105, radius_px: 22}

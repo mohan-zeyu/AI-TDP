@@ -16,6 +16,9 @@ def test_board_states_share_layout_differ_in_amps():
     s0, s1 = board.states[0], board.states[1]
     assert s0.layout is s1.layout
     assert not np.allclose(s0.amps, s1.amps)
+    assert s0.source_descriptors().shape[1] == 8
+    assert not np.allclose(s0.source_descriptors()[:, 6],
+                           s1.source_descriptors()[:, 6])
     assert not np.allclose(s0.theta, s1.theta)
 
 
@@ -68,6 +71,23 @@ def test_context_changes_prediction():
     assert not torch.allclose(a, b)
 
 
+def test_source_adapter_is_backward_compatible_and_trainable():
+    torch.manual_seed(7)
+    model = ThermalOperatorV2(ModelConfig(d_model=32, n_fourier=8))
+    sensors = torch.randn(1, 3, 3)
+    queries = torch.rand(1, 11, 2)
+    cond = torch.randn(1, 4)
+    sources = torch.tensor([[[
+        0.35, 0.55, 0.08, 0.05, 0.0, 1.0, 0.0, 0.0,
+    ]]])
+    plain = model(sensors, queries, cond)
+    conditioned = model(sensors, queries, cond, sources=sources)
+    torch.testing.assert_close(plain, conditioned)
+    conditioned.square().mean().backward()
+    final = model.source_adapter.mlp[-1]
+    assert final.weight.grad is not None and final.weight.grad.abs().sum() > 0
+
+
 def test_dataset_and_collate_shapes():
     rng_cfg = ScenarioConfig(ny=32, states_per_board=3)
     boards = [random_board(np.random.default_rng(i), rng_cfg) for i in range(4)]
@@ -76,19 +96,33 @@ def test_dataset_and_collate_shapes():
     ds = OperatorDataset(boards, tcfg, layout=None, base_seed=0)
     batch = collate([ds[i] for i in range(len(boards))])
     (sensors, s_mask, q_xy, q_theta, c_xy, q_over_s,
-     cond, cond_drop, h_hat, ctx, ctx_state, ctx_mask) = batch
+     cond, cond_drop, h_hat, conductivity, sink_multiplier,
+     b_xy, b_normal, b_conductivity, b_gamma, b_robin,
+     ctx, ctx_state, ctx_mask, materials, material_mask,
+     sources, source_mask, boundaries, boundary_mask) = batch
     B = len(boards)
     assert sensors.shape[0] == B and sensors.shape[2] == 3
     assert s_mask.dtype == torch.bool
     assert q_xy.shape == (B, 16, 2) and q_theta.shape == (B, 16)
     assert cond.shape == (B, 4) and h_hat.shape == (B,)
+    assert conductivity.shape == (B, 8)
+    assert sink_multiplier.shape == (B, 8)
+    assert b_xy.shape == (B, 64, 2)
+    assert b_gamma.shape == b_robin.shape == (B, 64)
+    assert materials.shape[0] == B and materials.shape[2] == 10
+    assert sources.shape[0] == B and sources.shape[2] == 8
+    assert source_mask.dtype == torch.bool
+    assert boundaries.shape[0] == B and boundaries.shape[2] == 8
     if ctx is not None:
         assert ctx.shape[0] == B and ctx.shape[2] == 3
         assert ctx_state.shape == ctx.shape[:2] == ctx_mask.shape
     # forward pass with the batch runs
     model = ThermalOperatorV2(ModelConfig(d_model=32, n_fourier=8))
     out = model(sensors, q_xy, cond, sensor_mask=s_mask, context=ctx,
-                context_state=ctx_state, context_mask=ctx_mask, cond_mask=cond_drop)
+                context_state=ctx_state, context_mask=ctx_mask, cond_mask=cond_drop,
+                materials=materials, material_mask=material_mask,
+                sources=sources, source_mask=source_mask,
+                boundaries=boundaries, boundary_mask=boundary_mask)
     assert out.shape == (B, 16)
 
 

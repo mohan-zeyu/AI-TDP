@@ -27,6 +27,12 @@ class ModelConfig:
     n_fourier: int = 32
     fourier_sigma: float = 5.0
     cond_dim: int = 4
+    material_dim: int = 10
+    material_hidden: int = 64
+    source_dim: int = 8
+    source_hidden: int = 64
+    boundary_dim: int = 8
+    boundary_hidden: int = 48
     n_token_types: int = 4  # 0 live sensor · 1 context frame A · 2 context frame B · 3 cond
 
 
@@ -72,6 +78,159 @@ class QueryEncoder(nn.Module):
         return self.mlp(self.ff(q))
 
 
+class MaterialGeometryAdapter(nn.Module):
+    """Encode query position relative to regular material boundaries."""
+
+    def __init__(self, d_model: int, hidden: int = 64):
+        super().__init__()
+        self.edge_width = 0.08
+        self.mlp = nn.Sequential(
+            nn.Linear(11, hidden),
+            nn.GELU(),
+            nn.Linear(hidden, d_model),
+        )
+        # Exact backward compatibility: material input initially changes
+        # nothing when an old checkpoint is migrated to the new architecture.
+        nn.init.zeros_(self.mlp[-1].weight)
+        nn.init.zeros_(self.mlp[-1].bias)
+
+    def forward(self, queries, materials, material_mask=None):
+        if materials is None or materials.shape[1] == 0:
+            return queries.new_zeros((*queries.shape[:2], self.mlp[-1].out_features))
+
+        center = materials[..., 0:2]
+        half = materials[..., 2:4].clamp_min(1e-4)
+        sin_a, cos_a = materials[..., 4], materials[..., 5]
+        log_k, log_h = materials[..., 6], materials[..., 7]
+        log_rc, shape = materials[..., 8], materials[..., 9].clamp(0.0, 1.0)
+        delta = queries[:, :, None, :] - center[:, None, :, :]
+        local_x = cos_a[:, None, :] * delta[..., 0] + sin_a[:, None, :] * delta[..., 1]
+        local_y = -sin_a[:, None, :] * delta[..., 0] + cos_a[:, None, :] * delta[..., 1]
+        ux = local_x / half[:, None, :, 0]
+        uy = local_y / half[:, None, :, 1]
+        ax, ay = ux.abs(), uy.abs()
+        rectangle_signed = torch.maximum(ax, ay) - 1.0
+        ellipse_signed = torch.sqrt(ux.square() + uy.square() + 1e-8) - 1.0
+        signed = rectangle_signed * (1.0 - shape[:, None, :]) + ellipse_signed * shape[:, None, :]
+        inside = torch.sigmoid(-signed / self.edge_width)
+        edge = torch.exp(-signed.abs() / self.edge_width)
+        features = torch.stack([
+            ux.clamp(-3.0, 3.0), uy.clamp(-3.0, 3.0),
+            ax.clamp(0.0, 3.0), ay.clamp(0.0, 3.0),
+            signed.clamp(-1.0, 3.0), inside, edge,
+            log_k[:, None, :].expand_as(signed),
+            log_h[:, None, :].expand_as(signed),
+            log_rc[:, None, :].expand_as(signed),
+            shape[:, None, :].expand_as(signed),
+        ], dim=-1)
+        encoded = self.mlp(features)
+        if material_mask is not None:
+            encoded = encoded.masked_fill(material_mask[:, None, :, None], 0.0)
+        return encoded.sum(dim=2)
+
+
+class SourceGeometryAdapter(nn.Module):
+    """Encode heat-source geometry independently from material geometry.
+
+    A source descriptor is ``[cx,cy,hx,hy,sin(a),cos(a),log_amp,shape]``.
+    ``shape=0`` denotes a smooth rectangle and ``shape=1`` an ellipse/Gaussian.
+    Amplitudes are relative within one operating state; the absolute thermal
+    scale still comes from the live sensor normalization.
+    """
+
+    def __init__(self, d_model: int, hidden: int = 64):
+        super().__init__()
+        self.edge_width = 0.08
+        self.mlp = nn.Sequential(
+            nn.Linear(9, hidden),
+            nn.GELU(),
+            nn.Linear(hidden, d_model),
+        )
+        # A v3.1 checkpoint can be migrated without changing its predictions.
+        nn.init.zeros_(self.mlp[-1].weight)
+        nn.init.zeros_(self.mlp[-1].bias)
+
+    def forward(self, queries, sources, source_mask=None):
+        if sources is None or sources.shape[1] == 0:
+            return queries.new_zeros((*queries.shape[:2], self.mlp[-1].out_features))
+
+        center = sources[..., 0:2]
+        half = sources[..., 2:4].clamp_min(1e-4)
+        sin_a, cos_a = sources[..., 4], sources[..., 5]
+        log_amp, shape = sources[..., 6], sources[..., 7].clamp(0.0, 1.0)
+        delta = queries[:, :, None, :] - center[:, None, :, :]
+        local_x = cos_a[:, None, :] * delta[..., 0] + sin_a[:, None, :] * delta[..., 1]
+        local_y = -sin_a[:, None, :] * delta[..., 0] + cos_a[:, None, :] * delta[..., 1]
+        ux = local_x / half[:, None, :, 0]
+        uy = local_y / half[:, None, :, 1]
+        ax, ay = ux.abs(), uy.abs()
+        rectangle_signed = torch.maximum(ax, ay) - 1.0
+        ellipse_signed = torch.sqrt(ux.square() + uy.square() + 1e-8) - 1.0
+        signed = rectangle_signed * (1.0 - shape[:, None, :]) + ellipse_signed * shape[:, None, :]
+        inside = torch.sigmoid(-signed / self.edge_width)
+        edge = torch.exp(-signed.abs() / self.edge_width)
+        features = torch.stack([
+            ux.clamp(-3.0, 3.0), uy.clamp(-3.0, 3.0),
+            ax.clamp(0.0, 3.0), ay.clamp(0.0, 3.0),
+            signed.clamp(-1.0, 3.0), inside, edge,
+            log_amp[:, None, :].expand_as(signed),
+            shape[:, None, :].expand_as(signed),
+        ], dim=-1)
+        encoded = self.mlp(features)
+        if source_mask is not None:
+            encoded = encoded.masked_fill(source_mask[:, None, :, None], 0.0)
+        return encoded.sum(dim=2)
+
+
+class BoundaryGeometryAdapter(nn.Module):
+    """Shared encoding of arbitrary straight Robin/Dirichlet edge segments.
+
+    Each descriptor is ``[x0,y0,x1,y1,nx,ny,log_gamma,is_robin]``.  A polygon
+    boundary can therefore be represented by its line segments without adding
+    board-specific weights to the universal operator.
+    """
+
+    def __init__(self, d_model: int, hidden: int = 48):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(9, hidden),
+            nn.GELU(),
+            nn.Linear(hidden, d_model),
+        )
+        nn.init.zeros_(self.mlp[-1].weight)
+        nn.init.zeros_(self.mlp[-1].bias)
+
+    def forward(self, queries, boundaries, boundary_mask=None):
+        if boundaries is None or boundaries.shape[1] == 0:
+            return queries.new_zeros((*queries.shape[:2], self.mlp[-1].out_features))
+        p0, p1 = boundaries[..., :2], boundaries[..., 2:4]
+        normal = boundaries[..., 4:6]
+        log_gamma, robin = boundaries[..., 6], boundaries[..., 7]
+        tangent = p1 - p0
+        length = tangent.square().sum(dim=-1).sqrt().clamp_min(1e-4)
+        tangent_unit = tangent / length[..., None]
+        delta = queries[:, :, None, :] - p0[:, None, :, :]
+        along = (delta * tangent_unit[:, None, :, :]).sum(dim=-1)
+        normal_distance = (delta * normal[:, None, :, :]).sum(dim=-1)
+        centered = (along / length[:, None, :] - 0.5) * 2.0
+        segment_gate = torch.sigmoid((1.0 - centered.abs()) / 0.08)
+        features = torch.stack([
+            normal_distance.clamp(-1.5, 1.5),
+            centered.clamp(-3.0, 3.0),
+            segment_gate,
+            (-normal_distance.abs() / 0.12).exp() * segment_gate,
+            normal[:, None, :, 0].expand_as(along),
+            normal[:, None, :, 1].expand_as(along),
+            log_gamma[:, None, :].expand_as(along),
+            robin[:, None, :].expand_as(along),
+            length[:, None, :].expand_as(along),
+        ], dim=-1)
+        encoded = self.mlp(features)
+        if boundary_mask is not None:
+            encoded = encoded.masked_fill(boundary_mask[:, None, :, None], 0.0)
+        return encoded.sum(dim=2)
+
+
 class AttentionBlock(nn.Module):
     """Pre-norm transformer block; self-attn if cross=False else cross-attn."""
 
@@ -105,6 +264,15 @@ class ThermalOperatorV2(nn.Module):
         self.cfg = cfg
         self.sens_enc = SensorEncoder(cfg.d_model, cfg.n_fourier, cfg.fourier_sigma)
         self.query_enc = QueryEncoder(cfg.d_model, cfg.n_fourier, cfg.fourier_sigma)
+        self.material_adapter = MaterialGeometryAdapter(
+            cfg.d_model, cfg.material_hidden
+        )
+        self.source_adapter = SourceGeometryAdapter(
+            cfg.d_model, cfg.source_hidden
+        )
+        self.boundary_adapter = BoundaryGeometryAdapter(
+            cfg.d_model, cfg.boundary_hidden
+        )
         self.cond_embed = nn.Linear(cfg.cond_dim, cfg.d_model)
         self.type_embed = nn.Embedding(cfg.n_token_types, cfg.d_model)
         self.self_blocks = nn.ModuleList(
@@ -122,7 +290,9 @@ class ThermalOperatorV2(nn.Module):
 
     def forward(self, sensors, queries, cond=None, sensor_mask=None,
                 context=None, context_state=None, context_mask=None,
-                cond_mask=None, board_tokens=None):
+                cond_mask=None, board_tokens=None, materials=None,
+                material_mask=None, sources=None, source_mask=None,
+                boundaries=None, boundary_mask=None):
         """sensors (B,K,3) · queries (B,Q,2) · cond (B,4) or None.
 
         v2.5 extras (all optional; None ≡ v2 behaviour):
@@ -164,6 +334,9 @@ class ThermalOperatorV2(nn.Module):
         for blk in self.self_blocks:
             s = blk(s, mask=full_mask)
         q = self.query_enc(queries)
+        q = q + self.material_adapter(queries, materials, material_mask)
+        q = q + self.source_adapter(queries, sources, source_mask)
+        q = q + self.boundary_adapter(queries, boundaries, boundary_mask)
         for blk in self.cross_blocks:
             q = blk(q, ctx=s, mask=full_mask)
         return self.head(q).squeeze(-1)  # (B, Q) — θ units
@@ -197,5 +370,14 @@ def save_checkpoint(path: Path | str, model: ThermalOperatorV2, extra: dict | No
 def load_checkpoint(path: Path | str, map_location="cpu") -> tuple[ThermalOperatorV2, dict]:
     ckpt = torch.load(Path(path), map_location=map_location, weights_only=False)
     model = ThermalOperatorV2(ModelConfig(**ckpt["model_config"]))
-    model.load_state_dict(ckpt["model_state"])
+    incompatible = model.load_state_dict(ckpt["model_state"], strict=False)
+    allowed_missing = {
+        name for name in model.state_dict()
+        if name.startswith(("material_adapter.", "source_adapter.", "boundary_adapter."))
+    }
+    if set(incompatible.missing_keys) - allowed_missing or incompatible.unexpected_keys:
+        raise RuntimeError(
+            "checkpoint incompatibility: "
+            f"missing={incompatible.missing_keys}, unexpected={incompatible.unexpected_keys}"
+        )
     return model, ckpt

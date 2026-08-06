@@ -1,0 +1,23 @@
+{
+  "coords": "fractional crop coordinates: u=column/width, v=row/height after the v3 crop and 180-degree rotation",
+  "sampling": "3x3 median at the site pixel",
+  "layouts": {
+    "pi4b_s3": [
+      {"id": "soc", "u": 0.44, "v": 0.66, "note": "SoC / painted package centre"},
+      {"id": "ram", "u": 0.64, "v": 0.66, "note": "LPDDR4 region"},
+      {"id": "usb_ctrl", "u": 0.73, "v": 0.35, "note": "USB controller region"},
+      {"id": "pmic", "u": 0.22, "v": 0.70, "note": "power-management region"},
+      {"id": "mid_solder", "u": 0.50, "v": 0.45, "note": "mid-board reference"},
+      {"id": "corner_cold", "u": 0.11, "v": 0.94, "note": "cold board corner"}
+    ],
+    "opi5pro_tape": [
+      {"id": "soc", "u": 0.4924, "v": 0.6105, "note": "main SoC hotspot on black tape"},
+      {"id": "power_input", "u": 0.6964, "v": 0.2978, "note": "power-input module hotspot; canonical pixel about row 53, col 78"},
+      {"id": "warm_secondary", "u": 0.7449, "v": 0.5068, "note": "secondary warm component region"},
+      {"id": "mid_board", "u": 0.3775, "v": 0.4378, "note": "mid-board reference"},
+      {"id": "lower_left_component", "u": 0.2321, "v": 0.7528, "note": "data-selected lower-left component region; canonical pixel about row 134, col 26"},
+      {"id": "left_edge_sink", "u": 0.0893, "v": 0.8876, "note": "data-selected lower-left edge thermal reference; canonical pixel about row 158, col 10"},
+      {"id": "corner_cold", "u": 0.0790, "v": 0.9326, "note": "cold board corner"}
+    ]
+  }
+}
