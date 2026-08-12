@@ -1,0 +1,74 @@
+[
+  {
+    "label": "SoC+gradient+cold",
+    "path": "benchmark\\results\\v31_pi4b_corrected_fullgpu_pmic_k3_t24_600\\test_predictions.npz",
+    "trusted_mae_c": 1.766147494316101,
+    "trusted_rmse_c": 2.364931583404541,
+    "soc_rmse_c": 0.5915443301200867,
+    "peak_error_c": 0.3615293502807617,
+    "hotspot_error_px": 4.021093855595946,
+    "full_rmse_c": 2.911393642425537,
+    "iou_90": 0.7984981226533167,
+    "iou_95": 0.8300536672629696
+  },
+  {
+    "label": "SoC+PMIC+cold",
+    "path": "benchmark\\results\\v31_corrected_gpu_k3_soc_pmic_cold_t24_600\\test_predictions.npz",
+    "trusted_mae_c": 1.923880696296692,
+    "trusted_rmse_c": 2.59435772895813,
+    "soc_rmse_c": 0.5381364226341248,
+    "peak_error_c": 0.14402532577514648,
+    "hotspot_error_px": 2.6995442064798367,
+    "full_rmse_c": 2.867354393005371,
+    "iou_90": 0.8395225464190982,
+    "iou_95": 0.7977941176470589
+  },
+  {
+    "label": "SoC+USB+cold",
+    "path": "benchmark\\results\\v31_corrected_gpu_k3_soc_usb_cold_t24_600\\test_predictions.npz",
+    "trusted_mae_c": 1.5777738094329834,
+    "trusted_rmse_c": 2.237961530685425,
+    "soc_rmse_c": 0.5478945970535278,
+    "peak_error_c": 0.18533802032470703,
+    "hotspot_error_px": 4.252105812766601,
+    "full_rmse_c": 3.268296957015991,
+    "iou_90": 0.79375,
+    "iou_95": 0.7972270363951474
+  },
+  {
+    "label": "SoC+USB+PMIC",
+    "path": "benchmark\\results\\v31_corrected_gpu_k3_soc_usb_pmic_t24_600\\test_predictions.npz",
+    "trusted_mae_c": 1.5598169565200806,
+    "trusted_rmse_c": 2.348092794418335,
+    "soc_rmse_c": 0.7866616249084473,
+    "peak_error_c": 0.7909135818481445,
+    "hotspot_error_px": 4.3598428896711265,
+    "full_rmse_c": 2.971433401107788,
+    "iou_90": 0.8335724533715926,
+    "iou_95": 0.6857142857142857
+  },
+  {
+    "label": "SoC+gradient+USB",
+    "path": "benchmark\\results\\v31_corrected_gpu_k3_soc_gradient_usb_t24_600\\test_predictions.npz",
+    "trusted_mae_c": 1.5034629106521606,
+    "trusted_rmse_c": 2.217902183532715,
+    "soc_rmse_c": 0.7949979901313782,
+    "peak_error_c": 0.3229657808939616,
+    "hotspot_error_px": 3.4781143826492276,
+    "full_rmse_c": 2.9033098220825195,
+    "iou_90": 0.832425068119891,
+    "iou_95": 0.6981481481481482
+  },
+  {
+    "label": "gradient+USB+cold (no SoC)",
+    "path": "benchmark\\results\\v31_corrected_gpu_k3_no_soc_t24_600\\test_predictions.npz",
+    "trusted_mae_c": 1.6418116092681885,
+    "trusted_rmse_c": 2.202824354171753,
+    "soc_rmse_c": 1.5512224435806274,
+    "peak_error_c": 2.0056166648864746,
+    "hotspot_error_px": 3.769314734811623,
+    "full_rmse_c": 3.356280565261841,
+    "iou_90": 0.7710843373493976,
+    "iou_95": 0.8188034188034188
+  }
+]

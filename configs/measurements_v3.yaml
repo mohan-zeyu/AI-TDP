@@ -150,12 +150,64 @@ protocols:
     sensor_layout: pi4b_s3
     sensor_ids: [soc, ram, corner_cold]
 
+  pi4b_paint_k6:
+    profile: pi4b_paint
+    train_states: [case16_half]
+    test_state: case17_full
+    sensor_layout: pi4b_s3
+    sensor_ids: [soc, ram, usb_ctrl, pmic, mid_solder, corner_cold]
+
+  pi4b_paint_k3_soc_usb_pmic:
+    profile: pi4b_paint
+    train_states: [case16_half]
+    test_state: case17_full
+    sensor_layout: pi4b_s3
+    sensor_ids: [soc, usb_ctrl, pmic]
+
+  pi4b_paint_k3_soc_usb_cold:
+    profile: pi4b_paint
+    train_states: [case16_half]
+    test_state: case17_full
+    sensor_layout: pi4b_s3
+    sensor_ids: [soc, usb_ctrl, corner_cold]
+
+  pi4b_paint_k3_soc_pmic_cold:
+    profile: pi4b_paint
+    train_states: [case16_half]
+    test_state: case17_full
+    sensor_layout: pi4b_s3
+    sensor_ids: [soc, pmic, corner_cold]
+
+  pi4b_paint_k3_soc_ram_usb:
+    profile: pi4b_paint
+    train_states: [case16_half]
+    test_state: case17_full
+    sensor_layout: pi4b_s3
+    sensor_ids: [soc, ram, usb_ctrl]
+
+  pi4b_paint_k3_no_soc:
+    profile: pi4b_paint
+    train_states: [case16_half]
+    test_state: case17_full
+    sensor_layout: pi4b_s3
+    sensor_ids: [ram, usb_ctrl, corner_cold]
+
   opi5pro_tape:
     profile: opi5pro_tape
     train_states: [case14_half_a]
     test_state: case15_full
     sensor_layout: opi5pro_tape
     sensor_ids: [soc, warm_secondary, corner_cold]
+
+  opi5pro_tape_corrected_pmic:
+    profile: opi5pro_tape
+    train_states: [case14_half_a]
+    test_state: case15_full
+    sensor_layout: opi5pro_tape
+    sensor_ids: [soc, pmic, corner_cold]
+    evaluation_regions:
+      pmic: {u: 0.6964, v: 0.2978, radius_px: 6}
+      cpu: {u: 0.4924, v: 0.6105, radius_px: 22}
 
   opi5pro_tape_heat_to_cool:
     profile: opi5pro_tape

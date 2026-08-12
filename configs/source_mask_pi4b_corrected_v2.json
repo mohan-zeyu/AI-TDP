@@ -1,0 +1,33 @@
+{
+  "coords": "fractional crop coordinates (u0,v0,u1,v1); corrected Pi 4B source-free PDE exclusion mask",
+  "rects": [
+    {
+      "id": "soc_die",
+      "u0": 0.300,
+      "v0": 0.605,
+      "u1": 0.525,
+      "v1": 0.755
+    },
+    {
+      "id": "pmic_component_1",
+      "u0": 0.695,
+      "v0": 0.725,
+      "u1": 0.745,
+      "v1": 0.769
+    },
+    {
+      "id": "pmic_component_2",
+      "u0": 0.760,
+      "v0": 0.733,
+      "u1": 0.820,
+      "v1": 0.787
+    },
+    {
+      "id": "pmic_component_3",
+      "u0": 0.695,
+      "v0": 0.761,
+      "u1": 0.745,
+      "v1": 0.805
+    }
+  ]
+}

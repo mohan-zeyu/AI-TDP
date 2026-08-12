@@ -1,0 +1,108 @@
+{
+  "protocol": {
+    "layout": [
+      "soc",
+      "pmic",
+      "corner_cold"
+    ],
+    "training": "case14_half_a",
+    "untouched_test": "case15_full",
+    "test_frames": 29,
+    "checkpoint": "models/v3/pretrain_v31_material_physics_512x12.pt"
+  },
+  "old_warm_secondary_layout": {
+    "trusted_region": {
+      "mae_c": 2.549792766571045,
+      "rmse_c": 3.1929595470428467,
+      "max_ae_c": 15.270889282226562,
+      "peak_error_c": 0.6271991072029903,
+      "hotspot_error_px": 1.3713638835069122,
+      "gradient_mae_c_per_px": 0.6477578282356262
+    },
+    "soc_roi": {
+      "mae_c": 1.2586948871612549,
+      "rmse_c": 1.4761537313461304,
+      "max_ae_c": 4.079734802246094,
+      "peak_error_c": 0.6271991072029903,
+      "hotspot_error_px": 1.3713638835069122,
+      "gradient_mae_c_per_px": 0.31123024225234985
+    },
+    "evaluation_regions": {},
+    "full_crop": {
+      "mae_c": 3.1317942142486572,
+      "rmse_c": 4.051715850830078,
+      "max_ae_c": 15.270889282226562,
+      "peak_error_c": 0.6271991072029903,
+      "hotspot_error_px": 1.3713638835069122,
+      "gradient_mae_c_per_px": 0.7000500559806824
+    }
+  },
+  "corrected_pmic_layout": {
+    "trusted_region": {
+      "mae_c": 2.526031255722046,
+      "rmse_c": 3.1898438930511475,
+      "max_ae_c": 14.60531997680664,
+      "peak_error_c": 1.3497125033674569,
+      "hotspot_error_px": 1.4142135623730947,
+      "gradient_mae_c_per_px": 0.6496266722679138
+    },
+    "soc_roi": {
+      "mae_c": 1.147928237915039,
+      "rmse_c": 1.344841718673706,
+      "max_ae_c": 3.4630279541015625,
+      "peak_error_c": 1.3497125033674569,
+      "hotspot_error_px": 1.4142135623730947,
+      "gradient_mae_c_per_px": 0.3089456856250763
+    },
+    "evaluation_regions": {
+      "pmic": {
+        "mae_c": 2.118492364883423,
+        "rmse_c": 2.8659822940826416,
+        "max_ae_c": 7.607749938964844,
+        "peak_error_c": 0.17184369317416487,
+        "hotspot_error_px": 1.206896551724138,
+        "gradient_mae_c_per_px": 0.9114724397659302
+      },
+      "cpu": {
+        "mae_c": 1.1102654933929443,
+        "rmse_c": 1.3458951711654663,
+        "max_ae_c": 4.206878662109375,
+        "peak_error_c": 1.3497125033674569,
+        "hotspot_error_px": 1.4142135623730947,
+        "gradient_mae_c_per_px": 0.4311583340167999
+      }
+    },
+    "full_crop": {
+      "mae_c": 3.350949764251709,
+      "rmse_c": 4.435771942138672,
+      "max_ae_c": 15.28176498413086,
+      "peak_error_c": 1.3497125033674569,
+      "hotspot_error_px": 1.4142135623730947,
+      "gradient_mae_c_per_px": 0.7113970518112183
+    }
+  },
+  "timeseries": {
+    "reference_mean_c": 80.91859140962701,
+    "reference_std_c": 0.11932162314695051,
+    "reference_mean_95ci": [
+      80.86933786435019,
+      80.96784495490384
+    ],
+    "reconstruction_mean_c": 80.93987396586238,
+    "reconstruction_std_c": 0.14880056763601426,
+    "reconstruction_mean_95ci": [
+      80.87845211035969,
+      81.00129582136506
+    ],
+    "mean_bias_c": 0.021282556235385643,
+    "horizontal_fit_frames": 25,
+    "horizontal_fit_window_minutes": 2.5,
+    "timeseries_rmse_c": 0.16640760145254876
+  },
+  "outputs": [
+    "C:\\Users\\23589\\Documents\\物理实验创新竞赛\\AI-TDP-organized\\reports\\paper_zh\\figure16_opi5pro_corrected_pmic_reconstruction.png",
+    "C:\\Users\\23589\\Documents\\物理实验创新竞赛\\AI-TDP-organized\\reports\\paper_zh\\figure17_opi5pro_corrected_pmic_timeseries.png",
+    "C:\\Users\\23589\\Documents\\物理实验创新竞赛\\AI-TDP-organized\\reports\\paper_zh\\figure20_opi5pro_corrected_pmic_horizontal_fit.png",
+    "C:\\Users\\23589\\Documents\\物理实验创新竞赛\\AI-TDP-organized\\reports\\model_comparison\\cross_board_opi5pro_corrected_pmic\\old_vs_corrected_pmic.png"
+  ]
+}

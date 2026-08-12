@@ -1,0 +1,8 @@
+{
+  "coords": "fractional crop coordinates (u0,v0,u1,v1), corrected from the physical Orange Pi 5 Pro layout and case14 training geometry",
+  "rects": [
+    {"id": "soc", "u0": 0.26, "v0": 0.45, "u1": 0.73, "v1": 0.77},
+    {"id": "pmic", "u0": 0.6564, "v0": 0.2698, "u1": 0.7364, "v1": 0.3258},
+    {"id": "lower_left_component", "u0": 0.14, "v0": 0.68, "u1": 0.33, "v1": 0.83}
+  ]
+}

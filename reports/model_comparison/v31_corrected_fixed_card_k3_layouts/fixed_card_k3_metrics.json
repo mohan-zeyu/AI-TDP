@@ -1,0 +1,112 @@
+{
+  "evaluation": "fixed corrected Board Card; sensor inputs changed at inference only",
+  "checkpoint": "C:\\Users\\23589\\Documents\\物理实验创新竞赛\\AI-TDP-organized\\models\\v3\\pretrain_v31_material_physics_512x12.pt",
+  "checkpoint_epoch": 8,
+  "card": "C:\\Users\\23589\\Documents\\物理实验创新竞赛\\AI-TDP-organized\\models\\boards\\pi4b_corrected_geometry_k3_t24.pt",
+  "test_state": "case17_full",
+  "test_frames": 48,
+  "layouts": [
+    {
+      "layout_id": "soc_gradient_cold",
+      "label": "主芯片+邻近梯度点+冷角点",
+      "sensor_ids": [
+        "soc",
+        "ram",
+        "corner_cold"
+      ],
+      "trusted_mae_c": 1.766147494316101,
+      "trusted_rmse_c": 2.364931583404541,
+      "soc_rmse_c": 0.5915443301200867,
+      "peak_error_c": 0.3615293502807617,
+      "hotspot_error_px": 4.021093855595946,
+      "full_rmse_c": 2.911393642425537,
+      "iou_90": 0.7984981226533167,
+      "iou_95": 0.8300536672629696
+    },
+    {
+      "layout_id": "soc_pmic_cold",
+      "label": "主芯片+PMIC+冷角点",
+      "sensor_ids": [
+        "soc",
+        "pmic",
+        "corner_cold"
+      ],
+      "trusted_mae_c": 3.1089017391204834,
+      "trusted_rmse_c": 3.7765603065490723,
+      "soc_rmse_c": 1.1452831029891968,
+      "peak_error_c": 0.14675140380859375,
+      "hotspot_error_px": 13.457304375481925,
+      "full_rmse_c": 3.8801474571228027,
+      "iou_90": 0.7073170731707317,
+      "iou_95": 0.7280130293159609
+    },
+    {
+      "layout_id": "soc_usb_cold",
+      "label": "主芯片+USB控制器+冷角点",
+      "sensor_ids": [
+        "soc",
+        "usb_ctrl",
+        "corner_cold"
+      ],
+      "trusted_mae_c": 2.082951068878174,
+      "trusted_rmse_c": 2.797441244125366,
+      "soc_rmse_c": 1.1681655645370483,
+      "peak_error_c": 1.2097105979919434,
+      "hotspot_error_px": 11.556939807795507,
+      "full_rmse_c": 3.2235095500946045,
+      "iou_90": 0.6215686274509804,
+      "iou_95": 0.7059748427672956
+    },
+    {
+      "layout_id": "soc_usb_pmic",
+      "label": "主芯片+USB控制器+PMIC",
+      "sensor_ids": [
+        "soc",
+        "usb_ctrl",
+        "pmic"
+      ],
+      "trusted_mae_c": 2.0891079902648926,
+      "trusted_rmse_c": 2.6994009017944336,
+      "soc_rmse_c": 1.1314828395843506,
+      "peak_error_c": 0.5839041074117025,
+      "hotspot_error_px": 7.079314911240172,
+      "full_rmse_c": 3.3006017208099365,
+      "iou_90": 0.7543640897755611,
+      "iou_95": 0.7112676056338029
+    },
+    {
+      "layout_id": "soc_gradient_usb",
+      "label": "主芯片+邻近梯度点+USB控制器",
+      "sensor_ids": [
+        "soc",
+        "ram",
+        "usb_ctrl"
+      ],
+      "trusted_mae_c": 1.9378228187561035,
+      "trusted_rmse_c": 2.510908603668213,
+      "soc_rmse_c": 1.1415683031082153,
+      "peak_error_c": 1.053662618001302,
+      "hotspot_error_px": 4.177198800137359,
+      "full_rmse_c": 3.2041666507720947,
+      "iou_90": 0.7777777777777778,
+      "iou_95": 0.618421052631579
+    },
+    {
+      "layout_id": "gradient_usb_cold",
+      "label": "邻近梯度点+USB控制器+冷角点（无主芯片）",
+      "sensor_ids": [
+        "ram",
+        "usb_ctrl",
+        "corner_cold"
+      ],
+      "trusted_mae_c": 2.145948648452759,
+      "trusted_rmse_c": 2.696000099182129,
+      "soc_rmse_c": 1.8775688409805298,
+      "peak_error_c": 2.3683191935221353,
+      "hotspot_error_px": 9.465074543290918,
+      "full_rmse_c": 3.193571090698242,
+      "iou_90": 0.6324110671936759,
+      "iou_95": 0.7300613496932515
+    }
+  ]
+}

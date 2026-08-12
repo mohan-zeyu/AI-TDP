@@ -53,8 +53,11 @@ class FinetuneConfig:
     lambda_edge: float = 0.0
     lambda_plateau: float = 0.0
     lambda_peak: float = 0.0
+    lambda_source_roi: float = 0.0
     n_shape: int = 128
     n_edge: int = 48
+    n_source_roi: int = 48
+    source_region_start_index: int = 1
     shape_region_index: int = 0
     shape_region_type: str = "material"
     lambda_prior: float = 1e-2   # weak prior: log ĥ ~ N(0, ln 3) → ĥ within the measured bound
@@ -66,6 +69,7 @@ class FinetuneConfig:
     jitter_px: int = 1
     eval_every: int = 20
     seed: int = 0
+    sequential_backward: bool = False  # accumulate equivalent gradients while releasing each loss graph early
 
 
 class BoardCard(nn.Module):
@@ -359,7 +363,8 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
              session: str = "s1", verbose: bool = True,
              material_descriptors: torch.Tensor | None = None,
              source_descriptors: torch.Tensor | None = None,
-             boundary_descriptors: torch.Tensor | None = None) -> tuple[BoardCard, dict]:
+             boundary_descriptors: torch.Tensor | None = None,
+             init_tokens: torch.Tensor | None = None) -> tuple[BoardCard, dict]:
     """Optimize a BoardCard on the train cases; early-stop on patch RMSE."""
     model.eval()
     device = next(model.parameters()).device
@@ -381,7 +386,15 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
     pts_t = torch.from_numpy(np.concatenate(pts).astype(np.float32)).to(device)
     with torch.no_grad():
         enc = model.sens_enc(pts_t[None])[0]
-    init = enc[torch.linspace(0, len(enc) - 1, cfg.n_tokens).long()][None]
+    if init_tokens is None:
+        init = enc[torch.linspace(0, len(enc) - 1, cfg.n_tokens).long()][None]
+    else:
+        init = init_tokens.detach().to(device=device, dtype=enc.dtype)
+        if init.shape != (1, cfg.n_tokens, model.cfg.d_model):
+            raise ValueError(
+                f"init token shape {tuple(init.shape)} does not match "
+                f"{(1, cfg.n_tokens, model.cfg.d_model)}"
+            )
     card = BoardCard(
         cfg.n_tokens, model.cfg.d_model, init_tokens=init,
         material_descriptors=material_descriptors,
@@ -456,8 +469,32 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
             shape_pools.append(shape_pool)
             edge_pools.append(edge_pool)
 
+    source_roi_pools = []
+    if cfg.lambda_source_roi > 0:
+        source_descriptors = card.sources()[0].detach().cpu().numpy()
+        selected_sources = source_descriptors[cfg.source_region_start_index:]
+        if len(selected_sources) == 0:
+            raise ValueError("source ROI loss requested without auxiliary source regions")
+        for case, sup_px in zip(train_cases, supervision):
+            allowed = np.zeros(case.shape, dtype=bool)
+            allowed[sup_px[:, 0], sup_px[:, 1]] = True
+            pools = []
+            for source in selected_sources:
+                shape_descriptor = np.concatenate([
+                    source[:6], np.zeros(3, dtype=source.dtype), source[7:8]
+                ])
+                pool = material_pixel_pool(
+                    shape_descriptor, case.shape, case.aspect, allowed
+                )
+                if len(pool):
+                    pools.append(pool)
+            if not pools:
+                raise ValueError(f"source regions have no supervised pixels in {case.case_id}")
+            source_roi_pools.append(np.concatenate(pools, axis=0))
+
     hist = {"loss": [], "data_loss": [], "soc_loss": [], "edge_loss": [],
-            "plateau_loss": [], "peak_loss": [], "patch_rmse": []}
+            "plateau_loss": [], "peak_loss": [], "source_roi_loss": [],
+            "patch_rmse": []}
     best = (float("inf"), None, -1)
     for step in range(cfg.steps):
         i = int(rng.integers(len(train_cases)))
@@ -485,24 +522,34 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
         wgt = 1.0 / (sig ** 2 + cfg.sigma_floor_c ** 2)
         wgt = torch.from_numpy((wgt / wgt.mean()).astype(np.float32))[None].to(device)
 
-        cond = card.cond(case.aspect)
+        cond = None if cfg.sequential_backward else card.cond(case.aspect)
         q = torch.from_numpy(q_xy.astype(np.float32))[None].to(device)
 
         def predict(xy_, batch_index=None):
+            current_cond = card.cond(case.aspect) if cfg.sequential_backward else cond
             return model(
-                sensors, xy_, cond, board_tokens=card.tokens,
+                sensors, xy_, current_cond, board_tokens=card.tokens,
                 materials=card.materials(), sources=card.sources(),
                 boundaries=card.boundaries(),
             )
 
+        if cfg.sequential_backward:
+            opt.zero_grad(set_to_none=True)
+
         pred = predict(q)
         data_loss = (wgt * (pred - q_t) ** 2).mean()
 
-        loss = data_loss + cfg.lambda_prior * (card.log_h / np.log(3.0)) ** 2
+        base_loss = data_loss + cfg.lambda_prior * (card.log_h / np.log(3.0)) ** 2
+        if cfg.sequential_backward:
+            base_loss.backward()
+            loss = base_loss.detach()
+        else:
+            loss = base_loss
         soc_loss = data_loss.new_zeros(())
         edge_loss = data_loss.new_zeros(())
         plateau_loss = data_loss.new_zeros(())
         peak_loss = data_loss.new_zeros(())
+        source_roi_loss = data_loss.new_zeros(())
         if use_shape_loss:
             shape_sel = shape_pools[i][rng.integers(
                 0, len(shape_pools[i]), cfg.n_shape
@@ -540,10 +587,34 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
                     (truth_outside - truth_inside) / dT
                 ).astype(np.float32))[None].to(device)
                 edge_loss = F.mse_loss(pred_outside - pred_inside, truth_jump)
-            loss = (loss + cfg.lambda_soc * soc_loss
-                    + cfg.lambda_edge * edge_loss
-                    + cfg.lambda_plateau * plateau_loss
-                    + cfg.lambda_peak * peak_loss)
+            shape_objective = (cfg.lambda_soc * soc_loss
+                               + cfg.lambda_edge * edge_loss
+                               + cfg.lambda_plateau * plateau_loss
+                               + cfg.lambda_peak * peak_loss)
+            if cfg.sequential_backward:
+                shape_objective.backward()
+                loss = loss + shape_objective.detach()
+            else:
+                loss = loss + shape_objective
+        if cfg.lambda_source_roi > 0:
+            source_sel = source_roi_pools[i][rng.integers(
+                0, len(source_roi_pools[i]), cfg.n_source_roi
+            )]
+            source_xy = px_to_xy(
+                source_sel[:, 0], source_sel[:, 1], n_rows=h, n_cols=w
+            )
+            source_q = torch.from_numpy(source_xy.astype(np.float32))[None].to(device)
+            source_truth = torch.from_numpy((
+                (case.field[source_sel[:, 0], source_sel[:, 1]] - case.amb) / dT
+            ).astype(np.float32))[None].to(device)
+            source_pred = predict(source_q)
+            source_roi_loss = F.mse_loss(source_pred, source_truth)
+            source_roi_objective = cfg.lambda_source_roi * source_roi_loss
+            if cfg.sequential_backward:
+                source_roi_objective.backward()
+                loss = loss + source_roi_objective.detach()
+            else:
+                loss = loss + source_roi_objective
         if card.material_log_k.numel():
             material_prior = (
                 (card.material_log_k - card.material_log_k_prior).square().mean()
@@ -551,14 +622,31 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
                 + 0.25 * (card.material_raw_log1p_rc
                           - card.material_raw_log1p_rc_prior).square().mean()
             )
-            loss = loss + cfg.lambda_material_prior * material_prior
+            material_objective = cfg.lambda_material_prior * material_prior
+            if cfg.sequential_backward:
+                material_objective.backward()
+                loss = loss + material_objective.detach()
+            else:
+                loss = loss + material_objective
         if card.source_log_amp.numel():
             source_prior = (
                 card.source_log_amp - card.source_log_amp_prior
             ).square().mean()
-            loss = loss + cfg.lambda_source_prior * source_prior
+            source_objective = cfg.lambda_source_prior * source_prior
+            if cfg.sequential_backward:
+                source_objective.backward()
+                loss = loss + source_objective.detach()
+            else:
+                loss = loss + source_objective
         if card.boundary_log_gamma_delta.numel():
-            loss = loss + cfg.lambda_boundary_prior * card.boundary_log_gamma_delta.square().mean()
+            boundary_prior_objective = (
+                cfg.lambda_boundary_prior * card.boundary_log_gamma_delta.square().mean()
+            )
+            if cfg.sequential_backward:
+                boundary_prior_objective.backward()
+                loss = loss + boundary_prior_objective.detach()
+            else:
+                loss = loss + boundary_prior_objective
         if cfg.lambda_pde > 0:
             c_xy = torch.from_numpy(samplers[i](rng, cfg.n_colloc).astype(np.float32))[None].to(device)
             h_hat = torch.exp(card.log_h)[None]
@@ -566,7 +654,12 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
             R = pde_residual(
                 predict, c_xy, torch.zeros(1, cfg.n_colloc, device=device), h_hat,
                 conductivity=conductivity, sink_multiplier=sink_multiplier)
-            loss = loss + cfg.lambda_pde * pde_loss(R)
+            pde_objective = cfg.lambda_pde * pde_loss(R)
+            if cfg.sequential_backward:
+                pde_objective.backward()
+                loss = loss + pde_objective.detach()
+            else:
+                loss = loss + pde_objective
         if cfg.lambda_boundary > 0 and card.boundaries().shape[1]:
             descriptors = card.boundaries()[0]
             picks = torch.randint(len(descriptors), (cfg.n_boundary,), device=device)
@@ -580,15 +673,26 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
             b_residual = boundary_residual(
                 predict, b_xy, b_normal, b_k, b_gamma, b_robin
             )
-            loss = loss + cfg.lambda_boundary * pde_loss(b_residual)
+            boundary_objective = cfg.lambda_boundary * pde_loss(b_residual)
+            if cfg.sequential_backward:
+                boundary_objective.backward()
+                loss = loss + boundary_objective.detach()
+            else:
+                loss = loss + boundary_objective
         if cfg.lambda_interface > 0 and card.materials().shape[1]:
             interface_loss = interface_flux_loss(
                 predict, card.materials(), n_points=cfg.n_interface
             )
-            loss = loss + cfg.lambda_interface * interface_loss
+            interface_objective = cfg.lambda_interface * interface_loss
+            if cfg.sequential_backward:
+                interface_objective.backward()
+                loss = loss + interface_objective.detach()
+            else:
+                loss = loss + interface_objective
 
-        opt.zero_grad()
-        loss.backward()
+        if not cfg.sequential_backward:
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
         opt.step()
         hist["loss"].append(float(loss.detach()))
         hist["data_loss"].append(float(data_loss.detach()))
@@ -596,6 +700,7 @@ def finetune(model, train_cases: list[RealCase], sites: list[dict],
         hist["edge_loss"].append(float(edge_loss.detach()))
         hist["plateau_loss"].append(float(plateau_loss.detach()))
         hist["peak_loss"].append(float(peak_loss.detach()))
+        hist["source_roi_loss"].append(float(source_roi_loss.detach()))
 
         if step % cfg.eval_every == 0 or step == cfg.steps - 1:
             rmse = eval_patches(model, card, train_cases, patches_rc, sites, session)

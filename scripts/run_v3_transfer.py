@@ -73,11 +73,14 @@ def load_saved_card(path: Path, model, device: torch.device) -> BoardCard:
     ).to(device)
     with torch.no_grad():
         card.log_h.fill_(float(payload["log_h"]))
-        # New cards persist already-composed per-segment gamma values.  Legacy
-        # cards have only the global scalar.
-        card.log_gamma.fill_(
-            0.0 if "boundary_descriptors" in payload else float(payload["log_gamma"])
-        )
+        saved_log_gamma = float(payload["log_gamma"])
+        # New cards persist already-composed per-segment gamma values.  Restore
+        # the global scalar because it is also part of the operator condition,
+        # while subtracting it once from the stored segment initialization so
+        # card.boundaries() remains numerically identical to the saved values.
+        if "boundary_descriptors" in payload:
+            card.boundary_log_gamma_init.sub_(saved_log_gamma)
+        card.log_gamma.fill_(saved_log_gamma)
     return card
 
 
@@ -199,10 +202,30 @@ def main() -> None:
         "--board-geometry", type=Path,
         default=ROOT / "configs" / "board_material_geometry_v1.json",
     )
+    parser.add_argument(
+        "--source-mask", type=Path,
+        help="optional source-free PDE exclusion mask; defaults to the board-specific legacy mask",
+    )
     parser.add_argument("--checkpoint", type=Path, default=ROOT / "models" / "v2" / "pretrain_v2.pt")
     parser.add_argument("--legacy-card", type=Path, default=ROOT / "models" / "boards" / "pi4b_s1.pt")
+    parser.add_argument(
+        "--init-card", type=Path,
+        help="optional same-board card whose tokens initialize the corrected-geometry calibration",
+    )
     parser.add_argument("--steps", type=int, default=600)
     parser.add_argument("--tokens", type=int, default=8)
+    parser.add_argument("--n-query", type=int, default=512)
+    parser.add_argument("--n-colloc", type=int, default=64)
+    parser.add_argument("--n-boundary", type=int, default=32)
+    parser.add_argument("--n-interface", type=int, default=16)
+    parser.add_argument("--n-shape", type=int, default=128)
+    parser.add_argument("--n-edge", type=int, default=48)
+    parser.add_argument("--lambda-source-roi", type=float, default=0.0)
+    parser.add_argument("--n-source-roi", type=int, default=48)
+    parser.add_argument(
+        "--low-memory", action="store_true",
+        help="backpropagate loss groups sequentially to reduce peak CUDA memory",
+    )
     parser.add_argument(
         "--shape-loss", choices=("none", "soc", "full"), default="none",
         help="explicit material-region loss ablation",
@@ -257,7 +280,7 @@ def main() -> None:
         "raspberry_pi_4b": ROOT / "configs" / "source_mask_board.json",
         "orange_pi_5_pro": ROOT / "configs" / "source_mask_opi5pro.json",
     }
-    source_mask_path = source_mask_files.get(profile["board"])
+    source_mask_path = args.source_mask or source_mask_files.get(profile["board"])
     source_rects = (json.loads(source_mask_path.read_text(encoding="utf-8"))["rects"]
                     if source_mask_path is not None else [])
     material_descriptors, source_descriptors, boundary_descriptors = board_geometry_descriptors(
@@ -275,15 +298,20 @@ def main() -> None:
     tune_config = FinetuneConfig(
         n_tokens=args.tokens,
         steps=args.steps,
-        n_query=512,
+        n_query=args.n_query,
         n_query_hot=96,
         n_query_site=32,
         lambda_pde=5e-5,
         lambda_boundary=5e-5,
         lambda_interface=2e-4,
-        n_colloc=64,
-        n_boundary=32,
-        n_interface=16,
+        n_colloc=args.n_colloc,
+        n_boundary=args.n_boundary,
+        n_interface=args.n_interface,
+        n_shape=args.n_shape,
+        n_edge=args.n_edge,
+        lambda_source_roi=args.lambda_source_roi,
+        n_source_roi=args.n_source_roi,
+        sequential_backward=args.low_memory,
         **shape_weights,
         shape_region_type=args.shape_region,
         eval_every=20,
@@ -294,6 +322,11 @@ def main() -> None:
         f"train={protocol['train_states']} test={protocol['test_state']} "
         f"sensors={protocol['sensor_ids']}"
     )
+    init_tokens = None
+    if args.init_card is not None:
+        init_payload = torch.load(args.init_card, map_location="cpu", weights_only=False)
+        init_tokens = init_payload["tokens"]
+
     card, history = finetune(
         model,
         train_cases,
@@ -306,13 +339,16 @@ def main() -> None:
         material_descriptors=material_descriptors,
         source_descriptors=source_descriptors,
         boundary_descriptors=boundary_descriptors,
+        init_tokens=init_tokens,
     )
 
     test = load_test_state(protocol["test_state"])
     prediction = predict_stack(model, card, test, sites, profile_id)
     target = test["T"].astype(np.float32)
     trust = test["trusted"].astype(bool)
-    soc_site = next(site for site in sites if site["id"] == "soc")
+    # Evaluate the physical SoC region even when a sensor-layout ablation
+    # deliberately omits the SoC measurement.
+    soc_site = by_id["soc"]
     soc_mask = sensor_roi(target.shape[1:], soc_site)
     region_masks = {}
     height, width = target.shape[1:]
